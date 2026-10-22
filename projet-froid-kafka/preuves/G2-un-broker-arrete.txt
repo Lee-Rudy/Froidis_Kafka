@@ -1,0 +1,63 @@
+# G2 - Perte d'un broker (12:52:44)
+$ docker stop froid-kafka-3   # [hôte]
+froid-kafka-3
+
+$ bin/kafka-topics.sh --bootstrap-server kafka-1:19092 --describe --topic mesures-brutes
+[2026-10-22 08:52:57,251] WARN [AdminClient clientId=adminclient-1] Error connecting to node kafka-3:19092 (id: 6 rack: C isFenced: false) (org.apache.kafka.clients.NetworkClient)
+java.net.UnknownHostException: kafka-3: Name does not resolve
+	at java.base/java.net.Inet6AddressImpl.lookupAllHostAddr(Native Method)
+	at java.base/java.net.Inet6AddressImpl.lookupAllHostAddr(Unknown Source)
+	at java.base/java.net.InetAddress$PlatformResolver.lookupByName(Unknown Source)
+	at java.base/java.net.InetAddress.getAddressesFromNameService(Unknown Source)
+	at java.base/java.net.InetAddress$NameServiceAddresses.get(Unknown Source)
+	at java.base/java.net.InetAddress.getAllByName0(Unknown Source)
+	at java.base/java.net.InetAddress.getAllByName(Unknown Source)
+	at org.apache.kafka.clients.DefaultHostResolver.resolve(DefaultHostResolver.java:27)
+	at org.apache.kafka.clients.ClientUtils.resolve(ClientUtils.java:125)
+	at org.apache.kafka.clients.ClusterConnectionStates$NodeConnectionState.resolveAddresses(ClusterConnectionStates.java:536)
+	at org.apache.kafka.clients.ClusterConnectionStates$NodeConnectionState.currentAddress(ClusterConnectionStates.java:511)
+	at org.apache.kafka.clients.ClusterConnectionStates.currentAddress(ClusterConnectionStates.java:173)
+	at org.apache.kafka.clients.NetworkClient.initiateConnect(NetworkClient.java:1140)
+	at org.apache.kafka.clients.NetworkClient.ready(NetworkClient.java:368)
+	at org.apache.kafka.clients.admin.KafkaAdminClient$AdminClientRunnable.sendEligibleCalls(KafkaAdminClient.java:1268)
+	at org.apache.kafka.clients.admin.KafkaAdminClient$AdminClientRunnable.processRequests(KafkaAdminClient.java:1529)
+	at org.apache.kafka.clients.admin.KafkaAdminClient$AdminClientRunnable.run(KafkaAdminClient.java:1472)
+	at java.base/java.lang.Thread.run(Unknown Source)
+Topic: mesures-brutes	TopicId: QZ6VGzZ7ST6xkKzTjETI6Q	PartitionCount: 6	ReplicationFactor: 3	Configs: min.insync.replicas=2,cleanup.policy=delete,retention.ms=604800000,unclean.leader.election.enable=false
+	Topic: mesures-brutes	Partition: 0	Leader: 5	Replicas: 5,6,4	Isr: 5,4	Elr: 	LastKnownElr: 
+	Topic: mesures-brutes	Partition: 1	Leader: 4	Replicas: 6,4,5	Isr: 4,5	Elr: 	LastKnownElr: 
+	Topic: mesures-brutes	Partition: 2	Leader: 4	Replicas: 4,5,6	Isr: 4,5	Elr: 	LastKnownElr: 
+	Topic: mesures-brutes	Partition: 3	Leader: 5	Replicas: 5,6,4	Isr: 5,4	Elr: 	LastKnownElr: 
+	Topic: mesures-brutes	Partition: 4	Leader: 4	Replicas: 6,4,5	Isr: 4,5	Elr: 	LastKnownElr: 
+	Topic: mesures-brutes	Partition: 5	Leader: 4	Replicas: 4,5,6	Isr: 4,5	Elr: 	LastKnownElr: 
+
+$ bin/kafka-topics.sh --bootstrap-server kafka-1:19092 --describe --under-replicated-partitions
+	Topic: alertes-temperature	Partition: 0	Leader: 4	Replicas: 4,5,6	Isr: 4,5	Elr: 	LastKnownElr: 
+	Topic: alertes-temperature	Partition: 1	Leader: 5	Replicas: 5,6,4	Isr: 5,4	Elr: 	LastKnownElr: 
+	Topic: alertes-temperature	Partition: 2	Leader: 4	Replicas: 6,4,5	Isr: 4,5	Elr: 	LastKnownElr: 
+	Topic: mesures-agregees	Partition: 0	Leader: 4	Replicas: 4,5,6	Isr: 4,5	Elr: 	LastKnownElr: 
+	Topic: mesures-agregees	Partition: 1	Leader: 5	Replicas: 5,6,4	Isr: 5,4	Elr: 	LastKnownElr: 
+	Topic: mesures-agregees	Partition: 2	Leader: 4	Replicas: 6,4,5	Isr: 4,5	Elr: 	LastKnownElr: 
+	Topic: mesures-brutes	Partition: 0	Leader: 5	Replicas: 5,6,4	Isr: 5,4	Elr: 	LastKnownElr: 
+	Topic: mesures-brutes	Partition: 1	Leader: 4	Replicas: 6,4,5	Isr: 4,5	Elr: 	LastKnownElr: 
+	Topic: mesures-brutes	Partition: 2	Leader: 4	Replicas: 4,5,6	Isr: 4,5	Elr: 	LastKnownElr: 
+	Topic: mesures-brutes	Partition: 3	Leader: 5	Replicas: 5,6,4	Isr: 5,4	Elr: 	LastKnownElr: 
+	Topic: mesures-brutes	Partition: 4	Leader: 4	Replicas: 6,4,5	Isr: 4,5	Elr: 	LastKnownElr: 
+	Topic: mesures-brutes	Partition: 5	Leader: 4	Replicas: 4,5,6	Isr: 4,5	Elr: 	LastKnownElr: 
+	Topic: etat-capteurs	Partition: 0	Leader: 4	Replicas: 6,4,5	Isr: 4,5	Elr: 	LastKnownElr: 
+	Topic: etat-capteurs	Partition: 1	Leader: 4	Replicas: 4,5,6	Isr: 4,5	Elr: 	LastKnownElr: 
+	Topic: etat-capteurs	Partition: 2	Leader: 5	Replicas: 5,6,4	Isr: 5,4	Elr: 	LastKnownElr: 
+... (lignes __consumer_offsets omises ici, comptées ci-dessous)
+# Comptage : total=65, dont __consumer_offsets=50, topics métier=15
+
+# Écriture acks=all avec un broker arrêté :
+$ bin/kafka-console-producer.sh --bootstrap-server kafka-1:19092 --topic mesures-brutes --reader-property parse.key=true --reader-property key.separator=: --command-property acks=all --command-property enable.idempotence=true
+CAP-001:{"eventId":"E011","sensorId":"CAP-001","ts":"2026-10-21T10:00:00Z","temperatureC":4.0}
+(code retour du producteur : 0)
+
+$ bin/kafka-get-offsets.sh --bootstrap-server kafka-1:19092 --topic mesures-brutes:1
+mesures-brutes:1:7
+
+$ bin/kafka-metadata-quorum.sh --bootstrap-server kafka-1:19092 describe --status | grep -E "LeaderId|CurrentVoters"
+LeaderId:               3
+CurrentObservers:       [{"id": 5, "directoryId": "Shq0wDNI4oN09V9ORfqmfA"}, {"id": 4, "directoryId": "UFZPjPoSN_xzen0yfUEOzg"}, {"id": 6, "directoryId": "cnRBS-aM7vX6e4nv-iNAQA"}]

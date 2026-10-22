@@ -1,0 +1,101 @@
+# Chapitre 2 - Atelier, étape 5 : cluster de test pour le test de panne
+# 3 contrôleurs KRaft + 3 brokers, Kafka 4.3.1 (image officielle apache/kafka).
+# Adapté de l'exemple officiel Apache Kafka (branche 4.3) :
+# docker/examples/docker-compose-files/cluster/isolated/plaintext/docker-compose.yml
+# Modifications : image fixée en 4.3.1 ; topics internes répliqués 3 fois (min ISR 2)
+# pour que l'arrêt de brokers ait un effet observable.
+#
+# Démarrer :  docker compose -f docker-compose-3-brokers.yml up -d
+# Arrêter   :  docker compose -f docker-compose-3-brokers.yml down
+#
+# Test de panne (commandes lancées dans le conteneur kafka-1) :
+# 1. Créer le topic :
+#    docker exec -it kafka-1 /opt/kafka/bin/kafka-topics.sh --create --topic test-panne --partitions 3 --replication-factor 3 --config min.insync.replicas=2 --bootstrap-server kafka-1:19092
+# 2. Observer Leader et Isr :
+#    docker exec -it kafka-1 /opt/kafka/bin/kafka-topics.sh --describe --topic test-panne --bootstrap-server kafka-1:19092
+# 3. Écrire en acks=all (autre terminal) :
+#    docker exec -it kafka-1 /opt/kafka/bin/kafka-console-producer.sh --topic test-panne --producer-property acks=all --bootstrap-server kafka-1:19092
+# 4. Arrêter un broker, refaire 2., vérifier que l'écriture continue :  docker stop kafka-3
+# 5. Arrêter un deuxième broker, écrire de nouveau, observer NotEnoughReplicas :  docker stop kafka-2
+# 6. Relancer :  docker start kafka-2 kafka-3
+#
+# Depuis la machine hôte, les brokers sont joignables sur localhost:29092, localhost:39092, localhost:49092.
+
+x-controleur: &controleur
+  image: apache/kafka:4.3.1
+  environment: &env-controleur
+    KAFKA_PROCESS_ROLES: 'controller'
+    KAFKA_CONTROLLER_QUORUM_VOTERS: '1@controller-1:9093,2@controller-2:9093,3@controller-3:9093'
+    KAFKA_CONTROLLER_LISTENER_NAMES: 'CONTROLLER'
+    KAFKA_LISTENERS: 'CONTROLLER://:9093'
+    CLUSTER_ID: '4L6g3nShT-eMCtK--X86sw'
+    KAFKA_LOG_DIRS: '/tmp/kraft-combined-logs'
+
+x-broker: &broker
+  image: apache/kafka:4.3.1
+  depends_on: [controller-1, controller-2, controller-3]
+
+x-env-broker: &env-broker
+  KAFKA_PROCESS_ROLES: 'broker'
+  KAFKA_CONTROLLER_QUORUM_VOTERS: '1@controller-1:9093,2@controller-2:9093,3@controller-3:9093'
+  KAFKA_LISTENERS: 'PLAINTEXT://:19092,PLAINTEXT_HOST://:9092'
+  KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: 'CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT'
+  KAFKA_INTER_BROKER_LISTENER_NAME: 'PLAINTEXT'
+  KAFKA_CONTROLLER_LISTENER_NAMES: 'CONTROLLER'
+  CLUSTER_ID: '4L6g3nShT-eMCtK--X86sw'
+  KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 3
+  KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 3
+  KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 2
+  KAFKA_SHARE_COORDINATOR_STATE_TOPIC_REPLICATION_FACTOR: 3
+  KAFKA_SHARE_COORDINATOR_STATE_TOPIC_MIN_ISR: 2
+  KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+  KAFKA_LOG_DIRS: '/tmp/kraft-combined-logs'
+
+services:
+  controller-1:
+    <<: *controleur
+    environment:
+      <<: *env-controleur
+      KAFKA_NODE_ID: 1
+
+  controller-2:
+    <<: *controleur
+    environment:
+      <<: *env-controleur
+      KAFKA_NODE_ID: 2
+
+  controller-3:
+    <<: *controleur
+    environment:
+      <<: *env-controleur
+      KAFKA_NODE_ID: 3
+
+  kafka-1:
+    <<: *broker
+    hostname: kafka-1
+    container_name: kafka-1
+    ports: ['29092:9092']
+    environment:
+      <<: *env-broker
+      KAFKA_NODE_ID: 4
+      KAFKA_ADVERTISED_LISTENERS: 'PLAINTEXT://kafka-1:19092,PLAINTEXT_HOST://localhost:29092'
+
+  kafka-2:
+    <<: *broker
+    hostname: kafka-2
+    container_name: kafka-2
+    ports: ['39092:9092']
+    environment:
+      <<: *env-broker
+      KAFKA_NODE_ID: 5
+      KAFKA_ADVERTISED_LISTENERS: 'PLAINTEXT://kafka-2:19092,PLAINTEXT_HOST://localhost:39092'
+
+  kafka-3:
+    <<: *broker
+    hostname: kafka-3
+    container_name: kafka-3
+    ports: ['49092:9092']
+    environment:
+      <<: *env-broker
+      KAFKA_NODE_ID: 6
+      KAFKA_ADVERTISED_LISTENERS: 'PLAINTEXT://kafka-3:19092,PLAINTEXT_HOST://localhost:49092'

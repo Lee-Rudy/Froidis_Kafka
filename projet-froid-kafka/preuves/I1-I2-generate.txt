@@ -1,0 +1,24 @@
+# I1 - topic de démonstration à une seule réplique (13:03:22)
+$ bin/kafka-topics.sh --bootstrap-server kafka-1:19092 --create --topic tp-migration --partitions 3 --replication-factor 1
+Created topic tp-migration.
+
+$ bin/kafka-topics.sh --bootstrap-server kafka-1:19092 --describe --topic tp-migration
+Topic: tp-migration	TopicId: UVtI7cbdT5-HmWBACLVxjQ	PartitionCount: 3	ReplicationFactor: 1	Configs: min.insync.replicas=2,unclean.leader.election.enable=false
+	Topic: tp-migration	Partition: 0	Leader: 5	Replicas: 5	Isr: 5	Elr: 	LastKnownElr: 
+	Topic: tp-migration	Partition: 1	Leader: 6	Replicas: 6	Isr: 6	Elr: 	LastKnownElr: 
+	Topic: tp-migration	Partition: 2	Leader: 4	Replicas: 4	Isr: 4	Elr: 	LastKnownElr: 
+
+# I2 - copie des JSON (écrits en LF dans json/) dans le conteneur, par pipe : pas de problème d'encodage Windows
+$ docker exec -i froid-kafka-1 bash -c 'cat > /tmp/topics-migration.json' < json/topics-migration.json   # [hôte]
+$ docker exec -i froid-kafka-1 bash -c 'cat > /tmp/plan-migration.json' < json/plan-migration.json   # [hôte]
+$ docker exec -i froid-kafka-1 bash -c 'cat > /tmp/election-migration.json' < json/election-migration.json   # [hôte]
+$ cat /tmp/topics-migration.json
+{"topics": [{"topic": "tp-migration"}], "version": 1}
+
+$ bin/kafka-reassign-partitions.sh --bootstrap-server kafka-1:19092 --topics-to-move-json-file /tmp/topics-migration.json --broker-list 4,5,6 --generate
+Current partition replica assignment
+{"version":1,"partitions":[{"topic":"tp-migration","partition":0,"replicas":[5],"log_dirs":["/var/lib/kafka/data"]},{"topic":"tp-migration","partition":1,"replicas":[6],"log_dirs":["/var/lib/kafka/data"]},{"topic":"tp-migration","partition":2,"replicas":[4],"log_dirs":["/var/lib/kafka/data"]}]}
+
+Proposed partition reassignment configuration
+{"version":1,"partitions":[{"topic":"tp-migration","partition":0,"replicas":[4],"log_dirs":["any"]},{"topic":"tp-migration","partition":1,"replicas":[5],"log_dirs":["any"]},{"topic":"tp-migration","partition":2,"replicas":[6],"log_dirs":["any"]}]}
+

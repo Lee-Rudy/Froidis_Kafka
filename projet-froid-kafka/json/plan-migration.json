@@ -1,0 +1,4 @@
+{"version": 1, "partitions": [
+  {"topic": "tp-migration", "partition": 0, "replicas": [4, 5, 6]},
+  {"topic": "tp-migration", "partition": 1, "replicas": [5, 6, 4]},
+  {"topic": "tp-migration", "partition": 2, "replicas": [6, 4, 5]}]}

@@ -1,0 +1,49 @@
+# G4 - Restauration (12:54:00)
+$ docker start froid-kafka-2 froid-kafka-3   # [hôte]
+froid-kafka-2
+froid-kafka-3
+
+# Boucle : bin/kafka-topics.sh --describe --under-replicated-partitions jusqu a sortie vide (toutes les 5 s)
+  T+4s : 65 partition(s) sous-répliquée(s)
+  T+12s : 0 partition(s) sous-répliquée(s)
+
+# Juste après la fin de la sous-réplication (T+12s) :
+$ bin/kafka-topics.sh --bootstrap-server kafka-1:19092 --describe --topic mesures-brutes
+	Topic: mesures-brutes	Partition: 0	Leader: 4	Replicas: 5,6,4	Isr: 4,5,6	Elr: 	LastKnownElr: 
+	Topic: mesures-brutes	Partition: 1	Leader: 4	Replicas: 6,4,5	Isr: 4,5,6	Elr: 	LastKnownElr: 
+	Topic: mesures-brutes	Partition: 2	Leader: 4	Replicas: 4,5,6	Isr: 4,5,6	Elr: 	LastKnownElr: 
+	Topic: mesures-brutes	Partition: 3	Leader: 4	Replicas: 5,6,4	Isr: 4,5,6	Elr: 	LastKnownElr: 
+	Topic: mesures-brutes	Partition: 4	Leader: 4	Replicas: 6,4,5	Isr: 4,5,6	Elr: 	LastKnownElr: 
+	Topic: mesures-brutes	Partition: 5	Leader: 4	Replicas: 4,5,6	Isr: 4,5,6	Elr: 	LastKnownElr: 
+
+# Écriture acks=all après retour :
+CAP-001:{"eventId":"E013","sensorId":"CAP-001","ts":"2026-10-21T10:02:00Z","temperatureC":4.3}
+(code retour : 0)
+mesures-brutes:1:8
+
+# Boucle : attente du retour des leaders préférés (Leader = 1er broker de Replicas), contrôle toutes les 20 s
+  T+21s : 4 partition(s) hors leader préféré
+  T+44s : 4 partition(s) hors leader préféré
+  T+66s : 4 partition(s) hors leader préféré
+  T+88s : 4 partition(s) hors leader préféré
+  T+111s : 4 partition(s) hors leader préféré
+  T+133s : 4 partition(s) hors leader préféré
+  T+155s : 4 partition(s) hors leader préféré
+  T+177s : 4 partition(s) hors leader préféré
+  T+200s : 4 partition(s) hors leader préféré
+  T+224s : 4 partition(s) hors leader préféré
+  T+246s : 4 partition(s) hors leader préféré
+  T+268s : 4 partition(s) hors leader préféré
+  T+293s : 0 partition(s) hors leader préféré
+
+# Leaders préférés rétablis (12:58:52, T+293s) :
+$ bin/kafka-topics.sh --bootstrap-server kafka-1:19092 --describe --topic mesures-brutes
+	Topic: mesures-brutes	Partition: 0	Leader: 5	Replicas: 5,6,4	Isr: 4,5,6	Elr: 	LastKnownElr: 
+	Topic: mesures-brutes	Partition: 1	Leader: 6	Replicas: 6,4,5	Isr: 4,5,6	Elr: 	LastKnownElr: 
+	Topic: mesures-brutes	Partition: 2	Leader: 4	Replicas: 4,5,6	Isr: 4,5,6	Elr: 	LastKnownElr: 
+	Topic: mesures-brutes	Partition: 3	Leader: 5	Replicas: 5,6,4	Isr: 4,5,6	Elr: 	LastKnownElr: 
+	Topic: mesures-brutes	Partition: 4	Leader: 6	Replicas: 6,4,5	Isr: 4,5,6	Elr: 	LastKnownElr: 
+	Topic: mesures-brutes	Partition: 5	Leader: 4	Replicas: 4,5,6	Isr: 4,5,6	Elr: 	LastKnownElr: 
+
+$ bin/kafka-topics.sh --bootstrap-server kafka-1:19092 --describe --under-replicated-partitions
+(aucune ligne = aucune partition sous-répliquée)

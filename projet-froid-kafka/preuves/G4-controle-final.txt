@@ -1,0 +1,20 @@
+# Contrôle après restauration (12:59:05)
+$ docker compose -f docker-compose-froid.yml ps --format "{{.Name}} · {{.Status}}"
+froid-controller-1 · Up 10 minutes (healthy)
+froid-controller-2 · Up 10 minutes (healthy)
+froid-controller-3 · Up 10 minutes (healthy)
+froid-kafka-1 · Up 10 minutes (healthy)
+froid-kafka-2 · Up 5 minutes (healthy)
+froid-kafka-3 · Up 5 minutes (healthy)
+
+$ bin/kafka-metadata-quorum.sh --bootstrap-server kafka-1:19092 describe --replication
+NodeId	DirectoryId           	LogEndOffset	Lag	LastFetchTimestamp	LastCaughtUpTimestamp	Status  	
+3     	KEjSrcxnTUSwHfG3A0pong	1754        	0  	1792659548410     	1792659548410        	Leader  	
+1     	gOtFIhrIS1CROaiIe0wMyQ	1754        	0  	1792659547946     	1792659547946        	Follower	
+2     	qcQkn36mTYGryiSUju5IyA	1754        	0  	1792659547946     	1792659547946        	Follower	
+5     	Shq0wDNI4oN09V9ORfqmfA	1754        	0  	1792659547946     	1792659547946        	Observer	
+4     	UFZPjPoSN_xzen0yfUEOzg	1754        	0  	1792659547946     	1792659547946        	Observer	
+6     	cnRBS-aM7vX6e4nv-iNAQA	1754        	0  	1792659547946     	1792659547946        	Observer	
+
+$ bin/kafka-topics.sh --bootstrap-server kafka-1:19092 --describe --exclude-internal   (partitions dont Leader != 1er de Replicas)
+0 partition(s) métier hors leader préféré

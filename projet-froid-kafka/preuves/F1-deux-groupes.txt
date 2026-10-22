@@ -1,0 +1,21 @@
+# F1 - deux groupes distincts lisent tout le topic (7 mesures après la question E-1)
+$ bin/kafka-console-consumer.sh --bootstrap-server kafka-1:19092 --topic mesures-brutes --group supervision-froid --from-beginning --max-messages 7 --formatter-property print.key=true --formatter-property print.partition=true --formatter-property print.offset=true --timeout-ms 20000
+Partition:3	Offset:0	CAP-002	{"eventId":"E002","sensorId":"CAP-002","ts":"2026-10-21T09:00:01Z","temperatureC":5.1}
+Partition:1	Offset:0	CAP-001	{"eventId":"E001","sensorId":"CAP-001","ts":"2026-10-21T09:00:00Z","temperatureC":4.2}
+Partition:1	Offset:1	CAP-001	{"eventId":"E003","sensorId":"CAP-001","ts":"2026-10-21T09:00:02Z","temperatureC":8.7}
+Partition:1	Offset:2	CAP-001	{"eventId":"E004","sensorId":"CAP-001","ts":"2026-10-21T09:02:05Z","temperatureC":9.0}
+Partition:1	Offset:3	CAP-001	{"eventId":"E006","sensorId":"CAP-001","ts":"2026-10-21T09:03:00Z","temperatureC":9.4}
+Partition:1	Offset:4	CAP-001	{"eventId":"E007","sensorId":"CAP-001","ts":"2026-10-21T09:04:00Z","temperatureC":7.6}
+Partition:2	Offset:0	CAP-003	{"eventId":"E005","sensorId":"CAP-003","ts":"2026-10-21T09:02:06Z","temperatureC":3.8}
+Processed a total of 7 messages
+
+$ bin/kafka-console-consumer.sh --bootstrap-server kafka-1:19092 --topic mesures-brutes --group analyse-qualite --from-beginning --max-messages 7 --formatter-property print.key=true --formatter-property print.partition=true --formatter-property print.offset=true --timeout-ms 20000
+Partition:1	Offset:0	CAP-001	{"eventId":"E001","sensorId":"CAP-001","ts":"2026-10-21T09:00:00Z","temperatureC":4.2}
+Partition:1	Offset:1	CAP-001	{"eventId":"E003","sensorId":"CAP-001","ts":"2026-10-21T09:00:02Z","temperatureC":8.7}
+Partition:1	Offset:2	CAP-001	{"eventId":"E004","sensorId":"CAP-001","ts":"2026-10-21T09:02:05Z","temperatureC":9.0}
+Partition:1	Offset:3	CAP-001	{"eventId":"E006","sensorId":"CAP-001","ts":"2026-10-21T09:03:00Z","temperatureC":9.4}
+Partition:1	Offset:4	CAP-001	{"eventId":"E007","sensorId":"CAP-001","ts":"2026-10-21T09:04:00Z","temperatureC":7.6}
+Partition:2	Offset:0	CAP-003	{"eventId":"E005","sensorId":"CAP-003","ts":"2026-10-21T09:02:06Z","temperatureC":3.8}
+Partition:3	Offset:0	CAP-002	{"eventId":"E002","sensorId":"CAP-002","ts":"2026-10-21T09:00:01Z","temperatureC":5.1}
+Processed a total of 7 messages
+

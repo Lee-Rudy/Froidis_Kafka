@@ -1,0 +1,71 @@
+$ docker compose -f docker-compose-froid.yml ps --format "{{.Name}} · {{.Status}}"
+froid-controller-1 · Up 23 seconds (healthy)
+froid-controller-2 · Up 23 seconds (healthy)
+froid-controller-3 · Up 23 seconds (healthy)
+froid-kafka-1 · Up 15 seconds (healthy)
+froid-kafka-2 · Up 15 seconds (healthy)
+froid-kafka-3 · Up 15 seconds (healthy)
+
+$ docker logs froid-controller-1 --tail 30
+	ssl.trustmanager.algorithm = PKIX
+	ssl.truststore.certificates = null
+	ssl.truststore.location = null
+	ssl.truststore.password = null
+	ssl.truststore.type = JKS
+	telemetry.max.bytes = 1048576
+	transaction.abort.timed.out.transaction.cleanup.interval.ms = 10000
+	transaction.max.timeout.ms = 900000
+	transaction.partition.verification.enable = true
+	transaction.remove.expired.transaction.cleanup.interval.ms = 3600000
+	transaction.state.log.load.buffer.size = 5242880
+	transaction.state.log.min.isr = 2
+	transaction.state.log.num.partitions = 50
+	transaction.state.log.replication.factor = 3
+	transaction.state.log.segment.bytes = 104857600
+	transaction.two.phase.commit.enable = false
+	transactional.id.expiration.ms = 604800000
+	unclean.leader.election.enable = false
+	unclean.leader.election.interval.ms = 300000
+	unstable.api.versions.enable = false
+	unstable.feature.versions.enable = false
+ (org.apache.kafka.common.config.AbstractConfig)
+[2026-10-22 08:48:36,671] INFO [MetadataLoader id=1] InitializeNewPublishers: initializing DynamicClientQuotaPublisher controller id=1 with a snapshot at offset 11 (org.apache.kafka.image.loader.MetadataLoader)
+[2026-10-22 08:48:36,673] INFO [MetadataLoader id=1] InitializeNewPublishers: initializing DynamicTopicClusterQuotaPublisher controller id=1 with a snapshot at offset 11 (org.apache.kafka.image.loader.MetadataLoader)
+[2026-10-22 08:48:36,679] INFO [MetadataLoader id=1] InitializeNewPublishers: initializing ScramPublisher controller id=1 with a snapshot at offset 11 (org.apache.kafka.image.loader.MetadataLoader)
+[2026-10-22 08:48:36,680] INFO [MetadataLoader id=1] InitializeNewPublishers: initializing DelegationTokenPublisher controller id=1 with a snapshot at offset 11 (org.apache.kafka.image.loader.MetadataLoader)
+[2026-10-22 08:48:36,681] INFO [MetadataLoader id=1] InitializeNewPublishers: initializing ControllerMetadataMetricsPublisher with a snapshot at offset 11 (org.apache.kafka.image.loader.MetadataLoader)
+[2026-10-22 08:48:36,681] INFO [MetadataLoader id=1] InitializeNewPublishers: initializing AclPublisher controller id=1 with a snapshot at offset 11 (org.apache.kafka.image.loader.MetadataLoader)
+[2026-10-22 08:48:36,737] INFO [ControllerRegistrationManager id=1 incarnation=JS9uhURQTRGsrmDOvpKxQw] RegistrationResponseHandler: controller acknowledged ControllerRegistrationRequest. (kafka.server.ControllerRegistrationManager)
+[2026-10-22 08:48:36,744] INFO [ControllerRegistrationManager id=1 incarnation=JS9uhURQTRGsrmDOvpKxQw] Our registration has been persisted to the metadata log. (kafka.server.ControllerRegistrationManager)
+
+$ docker logs froid-kafka-1 --tail 30
+	transaction.partition.verification.enable = true
+	transaction.remove.expired.transaction.cleanup.interval.ms = 3600000
+	transaction.state.log.load.buffer.size = 5242880
+	transaction.state.log.min.isr = 2
+	transaction.state.log.num.partitions = 50
+	transaction.state.log.replication.factor = 3
+	transaction.state.log.segment.bytes = 104857600
+	transaction.two.phase.commit.enable = false
+	transactional.id.expiration.ms = 604800000
+	unclean.leader.election.enable = false
+	unclean.leader.election.interval.ms = 300000
+	unstable.api.versions.enable = false
+	unstable.feature.versions.enable = false
+ (org.apache.kafka.common.config.AbstractConfig)
+[2026-10-22 08:48:43,852] INFO [BrokerServer id=4] Waiting for the broker to be unfenced (kafka.server.BrokerServer)
+[2026-10-22 08:48:43,905] INFO [BrokerLifecycleManager id=4] The broker is in RECOVERY. (org.apache.kafka.server.BrokerLifecycleManager)
+[2026-10-22 08:48:43,991] INFO [BrokerLifecycleManager id=4] The broker has been unfenced. Transitioning from RECOVERY to RUNNING. (org.apache.kafka.server.BrokerLifecycleManager)
+[2026-10-22 08:48:43,992] INFO [BrokerServer id=4] Finished waiting for the broker to be unfenced (kafka.server.BrokerServer)
+[2026-10-22 08:48:44,004] INFO authorizerStart completed for endpoint PLAINTEXT. Endpoint is now READY. (org.apache.kafka.server.network.EndpointReadyFutures)
+[2026-10-22 08:48:44,009] INFO [SocketServer listenerType=BROKER, nodeId=4] Enabling request processing. (kafka.network.SocketServer)
+[2026-10-22 08:48:44,017] INFO Awaiting socket connections on kafka-1:19092. (kafka.network.DataPlaneAcceptor)
+[2026-10-22 08:48:44,025] INFO [BrokerServer id=4] Waiting for all of the authorizer futures to be completed (kafka.server.BrokerServer)
+[2026-10-22 08:48:44,026] INFO [BrokerServer id=4] Finished waiting for all of the authorizer futures to be completed (kafka.server.BrokerServer)
+[2026-10-22 08:48:44,026] INFO [BrokerServer id=4] Waiting for all of the SocketServer Acceptors to be started (kafka.server.BrokerServer)
+[2026-10-22 08:48:44,026] INFO [BrokerServer id=4] Finished waiting for all of the SocketServer Acceptors to be started (kafka.server.BrokerServer)
+[2026-10-22 08:48:44,027] INFO [BrokerServer id=4] Transition from STARTING to STARTED (kafka.server.BrokerServer)
+[2026-10-22 08:48:44,028] INFO Kafka version: 4.3.1 (org.apache.kafka.common.utils.AppInfoParser)
+[2026-10-22 08:48:44,029] INFO Kafka commitId: 26b251a451ce941d (org.apache.kafka.common.utils.AppInfoParser)
+[2026-10-22 08:48:44,029] INFO Kafka startTimeMs: 1792658924027 (org.apache.kafka.common.utils.AppInfoParser)
+[2026-10-22 08:48:44,032] INFO [KafkaRaftServer nodeId=4] Kafka Server started (kafka.server.KafkaRaftServer)

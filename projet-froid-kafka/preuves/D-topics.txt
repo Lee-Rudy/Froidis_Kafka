@@ -1,0 +1,45 @@
+$ bin/kafka-topics.sh --bootstrap-server kafka-1:19092 --create --topic mesures-brutes --partitions 6 --replication-factor 3 --config min.insync.replicas=2 --config cleanup.policy=delete --config retention.ms=604800000
+Created topic mesures-brutes.
+
+$ bin/kafka-topics.sh --bootstrap-server kafka-1:19092 --create --topic mesures-agregees --partitions 3 --replication-factor 3 --config min.insync.replicas=2 --config cleanup.policy=delete --config retention.ms=2592000000
+Created topic mesures-agregees.
+
+$ bin/kafka-topics.sh --bootstrap-server kafka-1:19092 --create --topic alertes-temperature --partitions 3 --replication-factor 3 --config min.insync.replicas=2 --config cleanup.policy=delete --config retention.ms=2592000000
+Created topic alertes-temperature.
+
+$ bin/kafka-topics.sh --bootstrap-server kafka-1:19092 --create --topic etat-capteurs --partitions 3 --replication-factor 3 --config min.insync.replicas=2 --config cleanup.policy=compact
+Created topic etat-capteurs.
+
+$ bin/kafka-topics.sh --bootstrap-server kafka-1:19092 --list
+alertes-temperature
+etat-capteurs
+mesures-agregees
+mesures-brutes
+
+$ bin/kafka-topics.sh --bootstrap-server kafka-1:19092 --describe --topic mesures-brutes
+Topic: mesures-brutes	TopicId: QZ6VGzZ7ST6xkKzTjETI6Q	PartitionCount: 6	ReplicationFactor: 3	Configs: min.insync.replicas=2,cleanup.policy=delete,retention.ms=604800000,unclean.leader.election.enable=false
+	Topic: mesures-brutes	Partition: 0	Leader: 5	Replicas: 5,6,4	Isr: 5,6,4	Elr: 	LastKnownElr: 
+	Topic: mesures-brutes	Partition: 1	Leader: 6	Replicas: 6,4,5	Isr: 6,4,5	Elr: 	LastKnownElr: 
+	Topic: mesures-brutes	Partition: 2	Leader: 4	Replicas: 4,5,6	Isr: 4,5,6	Elr: 	LastKnownElr: 
+	Topic: mesures-brutes	Partition: 3	Leader: 5	Replicas: 5,6,4	Isr: 5,6,4	Elr: 	LastKnownElr: 
+	Topic: mesures-brutes	Partition: 4	Leader: 6	Replicas: 6,4,5	Isr: 6,4,5	Elr: 	LastKnownElr: 
+	Topic: mesures-brutes	Partition: 5	Leader: 4	Replicas: 4,5,6	Isr: 4,5,6	Elr: 	LastKnownElr: 
+
+$ bin/kafka-topics.sh --bootstrap-server kafka-1:19092 --describe --topic mesures-agregees
+Topic: mesures-agregees	TopicId: NfxYJAybTsOvyLC9Ch6V0Q	PartitionCount: 3	ReplicationFactor: 3	Configs: min.insync.replicas=2,cleanup.policy=delete,retention.ms=2592000000,unclean.leader.election.enable=false
+	Topic: mesures-agregees	Partition: 0	Leader: 4	Replicas: 4,5,6	Isr: 4,5,6	Elr: 	LastKnownElr: 
+	Topic: mesures-agregees	Partition: 1	Leader: 5	Replicas: 5,6,4	Isr: 5,6,4	Elr: 	LastKnownElr: 
+	Topic: mesures-agregees	Partition: 2	Leader: 6	Replicas: 6,4,5	Isr: 6,4,5	Elr: 	LastKnownElr: 
+
+$ bin/kafka-topics.sh --bootstrap-server kafka-1:19092 --describe --topic alertes-temperature
+Topic: alertes-temperature	TopicId: 5Be7kndkTf-d9wd5hpLfIg	PartitionCount: 3	ReplicationFactor: 3	Configs: min.insync.replicas=2,cleanup.policy=delete,retention.ms=2592000000,unclean.leader.election.enable=false
+	Topic: alertes-temperature	Partition: 0	Leader: 4	Replicas: 4,5,6	Isr: 4,5,6	Elr: 	LastKnownElr: 
+	Topic: alertes-temperature	Partition: 1	Leader: 5	Replicas: 5,6,4	Isr: 5,6,4	Elr: 	LastKnownElr: 
+	Topic: alertes-temperature	Partition: 2	Leader: 6	Replicas: 6,4,5	Isr: 6,4,5	Elr: 	LastKnownElr: 
+
+$ bin/kafka-topics.sh --bootstrap-server kafka-1:19092 --describe --topic etat-capteurs
+Topic: etat-capteurs	TopicId: QqgIZwzESq6xPqObEtkC6w	PartitionCount: 3	ReplicationFactor: 3	Configs: min.insync.replicas=2,cleanup.policy=compact,unclean.leader.election.enable=false
+	Topic: etat-capteurs	Partition: 0	Leader: 6	Replicas: 6,4,5	Isr: 6,4,5	Elr: 	LastKnownElr: 
+	Topic: etat-capteurs	Partition: 1	Leader: 4	Replicas: 4,5,6	Isr: 4,5,6	Elr: 	LastKnownElr: 
+	Topic: etat-capteurs	Partition: 2	Leader: 5	Replicas: 5,6,4	Isr: 5,6,4	Elr: 	LastKnownElr: 
+

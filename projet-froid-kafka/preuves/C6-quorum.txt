@@ -1,0 +1,19 @@
+# Terminal Kafka (conteneur froid-kafka-1), le 22/10/2026
+$ bin/kafka-metadata-quorum.sh --bootstrap-server kafka-1:19092 describe --status
+ClusterId:              VJxGZOKwQIay5zzcsB_t3w
+LeaderId:               3
+LeaderEpoch:            1
+HighWatermark:          77
+MaxFollowerLag:         0
+MaxFollowerLagTimeMs:   174
+CurrentVoters:          [{"id": 1, "directoryId": "gOtFIhrIS1CROaiIe0wMyQ", "endpoints": ["CONTROLLER://controller-1:9093"]}, {"id": 2, "directoryId": "qcQkn36mTYGryiSUju5IyA", "endpoints": ["CONTROLLER://controller-2:9093"]}, {"id": 3, "directoryId": "KEjSrcxnTUSwHfG3A0pong", "endpoints": ["CONTROLLER://controller-3:9093"]}]
+CurrentObservers:       [{"id": 5, "directoryId": "Shq0wDNI4oN09V9ORfqmfA"}, {"id": 4, "directoryId": "UFZPjPoSN_xzen0yfUEOzg"}, {"id": 6, "directoryId": "cnRBS-aM7vX6e4nv-iNAQA"}]
+
+$ bin/kafka-metadata-quorum.sh --bootstrap-server kafka-1:19092 describe --replication
+NodeId	DirectoryId           	LogEndOffset	Lag	LastFetchTimestamp	LastCaughtUpTimestamp	Status  	
+3     	KEjSrcxnTUSwHfG3A0pong	81          	0  	1792658945332     	1792658945332        	Leader  	
+1     	gOtFIhrIS1CROaiIe0wMyQ	81          	0  	1792658945105     	1792658945105        	Follower	
+2     	qcQkn36mTYGryiSUju5IyA	81          	0  	1792658945105     	1792658945105        	Follower	
+5     	Shq0wDNI4oN09V9ORfqmfA	81          	0  	1792658945105     	1792658945105        	Observer	
+4     	UFZPjPoSN_xzen0yfUEOzg	81          	0  	1792658945104     	1792658945104        	Observer	
+6     	cnRBS-aM7vX6e4nv-iNAQA	81          	0  	1792658945104     	1792658945104        	Observer	

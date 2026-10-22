@@ -1,0 +1,170 @@
+# TP fil rouge FROIDIS : cluster Kafka 4.3.1, KRaft à rôles séparés.
+# 3 contrôleurs (node.id 1, 2, 3, port 9093) + 3 brokers (node.id 4, 5, 6, port 19092, broker.rack A, B, C).
+# Configuration écrite à la main dans config/*.properties ; identifiants dans .env (lu par Compose).
+# Chaque service formate son volume (--ignore-formatted : sans effet aux redémarrages), puis démarre Kafka.
+# Le double $$ transmet un $ au shell du conteneur ; ${...} est remplacé par Compose à partir de .env.
+#
+# Démarrer :  docker compose -f docker-compose-froid.yml up -d --wait
+# Arrêter   :  docker compose -f docker-compose-froid.yml stop      (puis start)
+# JAMAIS    :  docker compose -f docker-compose-froid.yml down -v   (supprime les volumes, donc les données)
+
+name: projet-froid
+
+x-noeud: &noeud
+  image: apache/kafka:4.3.1
+
+x-env-controleur: &env-controleur
+  KAFKA_HEAP_OPTS: "-Xmx512m -Xms512m"
+  CLUSTER_ID: ${CLUSTER_ID}
+  QUORUM_INITIAL: "1@controller-1:9093:${UUID_C1},2@controller-2:9093:${UUID_C2},3@controller-3:9093:${UUID_C3}"
+
+x-env-broker: &env-broker
+  KAFKA_HEAP_OPTS: "-Xmx512m -Xms512m"
+  CLUSTER_ID: ${CLUSTER_ID}
+
+x-sante: &sante
+  interval: 10s
+  timeout: 30s
+  retries: 30
+  start_period: 20s
+
+x-sante-controleur: &sante-controleur
+  <<: *sante
+  test:
+    - CMD-SHELL
+    - >-
+      /opt/kafka/bin/kafka-metadata-quorum.sh --bootstrap-controller $$(hostname):9093
+      describe --status | grep -Eq 'LeaderId:[[:space:]]+[0-9]'
+
+x-sante-broker: &sante-broker
+  <<: *sante
+  test:
+    - CMD-SHELL
+    - >-
+      /opt/kafka/bin/kafka-broker-api-versions.sh
+      --bootstrap-server $$(hostname):19092 > /dev/null
+
+x-attente-quorum: &attente-quorum
+  controller-1: { condition: service_healthy }
+  controller-2: { condition: service_healthy }
+  controller-3: { condition: service_healthy }
+
+services:
+  controller-1:
+    <<: *noeud
+    container_name: froid-controller-1
+    hostname: controller-1
+    environment: *env-controleur
+    volumes:
+      - ./config:/opt/kafka/config/froid:ro
+      - controller-1:/var/lib/kafka/data
+    command:
+      - bash
+      - -c
+      - >-
+        /opt/kafka/bin/kafka-storage.sh format --ignore-formatted
+        --cluster-id $$CLUSTER_ID --initial-controllers $$QUORUM_INITIAL
+        --config /opt/kafka/config/froid/controller-1.properties
+        && exec /opt/kafka/bin/kafka-server-start.sh /opt/kafka/config/froid/controller-1.properties
+    healthcheck: *sante-controleur
+
+  controller-2:
+    <<: *noeud
+    container_name: froid-controller-2
+    hostname: controller-2
+    environment: *env-controleur
+    volumes:
+      - ./config:/opt/kafka/config/froid:ro
+      - controller-2:/var/lib/kafka/data
+    command:
+      - bash
+      - -c
+      - >-
+        /opt/kafka/bin/kafka-storage.sh format --ignore-formatted
+        --cluster-id $$CLUSTER_ID --initial-controllers $$QUORUM_INITIAL
+        --config /opt/kafka/config/froid/controller-2.properties
+        && exec /opt/kafka/bin/kafka-server-start.sh /opt/kafka/config/froid/controller-2.properties
+    healthcheck: *sante-controleur
+
+  controller-3:
+    <<: *noeud
+    container_name: froid-controller-3
+    hostname: controller-3
+    environment: *env-controleur
+    volumes:
+      - ./config:/opt/kafka/config/froid:ro
+      - controller-3:/var/lib/kafka/data
+    command:
+      - bash
+      - -c
+      - >-
+        /opt/kafka/bin/kafka-storage.sh format --ignore-formatted
+        --cluster-id $$CLUSTER_ID --initial-controllers $$QUORUM_INITIAL
+        --config /opt/kafka/config/froid/controller-3.properties
+        && exec /opt/kafka/bin/kafka-server-start.sh /opt/kafka/config/froid/controller-3.properties
+    healthcheck: *sante-controleur
+
+  kafka-1:
+    <<: *noeud
+    container_name: froid-kafka-1
+    hostname: kafka-1
+    environment: *env-broker
+    volumes:
+      - ./config:/opt/kafka/config/froid:ro
+      - kafka-1:/var/lib/kafka/data
+    command:
+      - bash
+      - -c
+      - >-
+        /opt/kafka/bin/kafka-storage.sh format --ignore-formatted
+        --cluster-id $$CLUSTER_ID --no-initial-controllers
+        --config /opt/kafka/config/froid/broker-4.properties
+        && exec /opt/kafka/bin/kafka-server-start.sh /opt/kafka/config/froid/broker-4.properties
+    depends_on: *attente-quorum
+    healthcheck: *sante-broker
+
+  kafka-2:
+    <<: *noeud
+    container_name: froid-kafka-2
+    hostname: kafka-2
+    environment: *env-broker
+    volumes:
+      - ./config:/opt/kafka/config/froid:ro
+      - kafka-2:/var/lib/kafka/data
+    command:
+      - bash
+      - -c
+      - >-
+        /opt/kafka/bin/kafka-storage.sh format --ignore-formatted
+        --cluster-id $$CLUSTER_ID --no-initial-controllers
+        --config /opt/kafka/config/froid/broker-5.properties
+        && exec /opt/kafka/bin/kafka-server-start.sh /opt/kafka/config/froid/broker-5.properties
+    depends_on: *attente-quorum
+    healthcheck: *sante-broker
+
+  kafka-3:
+    <<: *noeud
+    container_name: froid-kafka-3
+    hostname: kafka-3
+    environment: *env-broker
+    volumes:
+      - ./config:/opt/kafka/config/froid:ro
+      - kafka-3:/var/lib/kafka/data
+    command:
+      - bash
+      - -c
+      - >-
+        /opt/kafka/bin/kafka-storage.sh format --ignore-formatted
+        --cluster-id $$CLUSTER_ID --no-initial-controllers
+        --config /opt/kafka/config/froid/broker-6.properties
+        && exec /opt/kafka/bin/kafka-server-start.sh /opt/kafka/config/froid/broker-6.properties
+    depends_on: *attente-quorum
+    healthcheck: *sante-broker
+
+volumes:
+  controller-1:
+  controller-2:
+  controller-3:
+  kafka-1:
+  kafka-2:
+  kafka-3:

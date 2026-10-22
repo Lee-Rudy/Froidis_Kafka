@@ -1,0 +1,20 @@
+# Question E-1 : deux mesures supplémentaires de CAP-001, même producteur (acks=all, idempotence)
+$ bin/kafka-console-producer.sh --bootstrap-server kafka-1:19092 --topic mesures-brutes --reader-property parse.key=true --reader-property key.separator=: --command-property acks=all --command-property enable.idempotence=true
+CAP-001:{"eventId":"E006","sensorId":"CAP-001","ts":"2026-10-21T09:03:00Z","temperatureC":9.4}
+CAP-001:{"eventId":"E007","sensorId":"CAP-001","ts":"2026-10-21T09:04:00Z","temperatureC":7.6}
+
+$ bin/kafka-console-consumer.sh --bootstrap-server kafka-1:19092 --topic mesures-brutes --partition 1 --offset earliest --formatter-property print.key=true --formatter-property print.partition=true --formatter-property print.offset=true --max-messages 5 --timeout-ms 15000
+Partition:1	Offset:0	CAP-001	{"eventId":"E001","sensorId":"CAP-001","ts":"2026-10-21T09:00:00Z","temperatureC":4.2}
+Partition:1	Offset:1	CAP-001	{"eventId":"E003","sensorId":"CAP-001","ts":"2026-10-21T09:00:02Z","temperatureC":8.7}
+Partition:1	Offset:2	CAP-001	{"eventId":"E004","sensorId":"CAP-001","ts":"2026-10-21T09:02:05Z","temperatureC":9.0}
+Partition:1	Offset:3	CAP-001	{"eventId":"E006","sensorId":"CAP-001","ts":"2026-10-21T09:03:00Z","temperatureC":9.4}
+Partition:1	Offset:4	CAP-001	{"eventId":"E007","sensorId":"CAP-001","ts":"2026-10-21T09:04:00Z","temperatureC":7.6}
+Processed a total of 5 messages
+
+$ bin/kafka-get-offsets.sh --bootstrap-server kafka-1:19092 --topic mesures-brutes
+mesures-brutes:0:0
+mesures-brutes:1:5
+mesures-brutes:2:1
+mesures-brutes:3:1
+mesures-brutes:4:0
+mesures-brutes:5:0

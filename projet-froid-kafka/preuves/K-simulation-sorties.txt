@@ -1,0 +1,25 @@
+# Phase K - SIMULATION MANUELLE des sorties d'un futur job Flink (13:04:34)
+# Ces messages sont tapés à la main : ce n'est PAS une détection automatique.
+
+# Lignes envoyées dans mesures-agregees :
+$ bin/kafka-console-producer.sh --bootstrap-server kafka-1:19092 --topic mesures-agregees --reader-property parse.key=true --reader-property key.separator=: --command-property acks=all --command-property enable.idempotence=true
+CAP-001:{"sensorId":"CAP-001","fenetreDebut":"2026-10-21T09:00:00Z","fenetreFin":"2026-10-21T09:05:00Z","nbMesures":4,"tempMin":4.2,"tempMax":9.0,"tempMoy":7.0,"source":"SIMULATION"}
+CAP-002:{"sensorId":"CAP-002","fenetreDebut":"2026-10-21T09:00:00Z","fenetreFin":"2026-10-21T09:05:00Z","nbMesures":1,"tempMin":5.1,"tempMax":5.1,"tempMoy":5.1,"source":"SIMULATION"}
+CAP-003:{"sensorId":"CAP-003","fenetreDebut":"2026-10-21T09:00:00Z","fenetreFin":"2026-10-21T09:05:00Z","nbMesures":1,"tempMin":3.8,"tempMax":3.8,"tempMoy":3.8,"source":"SIMULATION"}
+(code retour : 0)
+
+# Ligne envoyée dans alertes-temperature (ligne du sujet) :
+$ bin/kafka-console-producer.sh --bootstrap-server kafka-1:19092 --topic alertes-temperature --reader-property parse.key=true --reader-property key.separator=: --command-property acks=all --command-property enable.idempotence=true
+CAP-001:{"alertId":"A001","sensorId":"CAP-001","regle":"T>8 pendant 2 min","source":"SIMULATION"}
+(code retour : 0)
+
+$ bin/kafka-console-consumer.sh --bootstrap-server kafka-1:19092 --topic mesures-agregees --from-beginning --formatter-property print.key=true --formatter-property print.partition=true --formatter-property print.offset=true --max-messages 3 --timeout-ms 15000
+Partition:1	Offset:0	CAP-001	{"sensorId":"CAP-001","fenetreDebut":"2026-10-21T09:00:00Z","fenetreFin":"2026-10-21T09:05:00Z","nbMesures":4,"tempMin":4.2,"tempMax":9.0,"tempMoy":7.0,"source":"SIMULATION"}
+Partition:0	Offset:0	CAP-002	{"sensorId":"CAP-002","fenetreDebut":"2026-10-21T09:00:00Z","fenetreFin":"2026-10-21T09:05:00Z","nbMesures":1,"tempMin":5.1,"tempMax":5.1,"tempMoy":5.1,"source":"SIMULATION"}
+Partition:2	Offset:0	CAP-003	{"sensorId":"CAP-003","fenetreDebut":"2026-10-21T09:00:00Z","fenetreFin":"2026-10-21T09:05:00Z","nbMesures":1,"tempMin":3.8,"tempMax":3.8,"tempMoy":3.8,"source":"SIMULATION"}
+Processed a total of 3 messages
+
+$ bin/kafka-console-consumer.sh --bootstrap-server kafka-1:19092 --topic alertes-temperature --from-beginning --formatter-property print.key=true --formatter-property print.partition=true --formatter-property print.offset=true --max-messages 1 --timeout-ms 15000
+Partition:1	Offset:0	CAP-001	{"alertId":"A001","sensorId":"CAP-001","regle":"T>8 pendant 2 min","source":"SIMULATION"}
+Processed a total of 1 messages
+

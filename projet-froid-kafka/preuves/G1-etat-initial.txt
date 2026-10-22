@@ -1,0 +1,16 @@
+# G1 - Situation initiale (12:52:26)
+$ bin/kafka-topics.sh --bootstrap-server kafka-1:19092 --describe --topic mesures-brutes
+Topic: mesures-brutes	TopicId: QZ6VGzZ7ST6xkKzTjETI6Q	PartitionCount: 6	ReplicationFactor: 3	Configs: min.insync.replicas=2,cleanup.policy=delete,retention.ms=604800000,unclean.leader.election.enable=false
+	Topic: mesures-brutes	Partition: 0	Leader: 5	Replicas: 5,6,4	Isr: 5,6,4	Elr: 	LastKnownElr: 
+	Topic: mesures-brutes	Partition: 1	Leader: 6	Replicas: 6,4,5	Isr: 6,4,5	Elr: 	LastKnownElr: 
+	Topic: mesures-brutes	Partition: 2	Leader: 4	Replicas: 4,5,6	Isr: 4,5,6	Elr: 	LastKnownElr: 
+	Topic: mesures-brutes	Partition: 3	Leader: 5	Replicas: 5,6,4	Isr: 5,6,4	Elr: 	LastKnownElr: 
+	Topic: mesures-brutes	Partition: 4	Leader: 6	Replicas: 6,4,5	Isr: 6,4,5	Elr: 	LastKnownElr: 
+	Topic: mesures-brutes	Partition: 5	Leader: 4	Replicas: 4,5,6	Isr: 4,5,6	Elr: 	LastKnownElr: 
+
+$ bin/kafka-topics.sh --bootstrap-server kafka-1:19092 --describe --under-replicated-partitions
+(aucune ligne = aucune partition sous-répliquée)
+
+$ bin/kafka-topics.sh --bootstrap-server kafka-1:19092 --describe --topic __consumer_offsets | head -1
+Topic: __consumer_offsets	TopicId: ZrZinQ93Tiub9iTMmojU6w	PartitionCount: 50	ReplicationFactor: 3	Configs: compression.type=producer,min.insync.replicas=2,cleanup.policy=compact,segment.bytes=104857600,unclean.leader.election.enable=false
+write /dev/stdout: The pipe is being closed.

@@ -1,0 +1,86 @@
+# L2 - Arrêt et relance sans reformatage
+$ docker compose -f docker-compose-froid.yml stop   # [hôte] (13:06:19)
+ Container froid-kafka-3  Stopping
+ Container froid-kafka-2  Stopping
+ Container froid-kafka-1  Stopping
+ Container froid-kafka-3  Stopped
+ Container froid-kafka-1  Stopped
+ Container froid-kafka-2  Stopped
+ Container froid-controller-1  Stopping
+ Container froid-controller-3  Stopping
+ Container froid-controller-2  Stopping
+ Container froid-controller-1  Stopped
+ Container froid-controller-2  Stopped
+ Container froid-controller-3  Stopped
+
+$ docker compose -f docker-compose-froid.yml ps -a --format "{{.Name}} · {{.Status}}"
+froid-controller-1 · Exited (143) 1 second ago
+froid-controller-2 · Exited (143) 1 second ago
+froid-controller-3 · Exited (137) 1 second ago
+froid-kafka-1 · Exited (137) 2 seconds ago
+froid-kafka-2 · Exited (143) 2 seconds ago
+froid-kafka-3 · Exited (137) 2 seconds ago
+
+$ docker volume ls --filter name=projet-froid
+DRIVER    VOLUME NAME
+local     projet-froid_controller-1
+local     projet-froid_controller-2
+local     projet-froid_controller-3
+local     projet-froid_kafka-1
+local     projet-froid_kafka-2
+local     projet-froid_kafka-3
+
+$ docker compose -f docker-compose-froid.yml start   # [hôte] (13:06:24)
+ Container froid-controller-3  Starting
+ Container froid-controller-1  Starting
+ Container froid-controller-2  Starting
+ Container froid-controller-3  Started
+ Container froid-controller-2  Started
+ Container froid-controller-1  Started
+ Container froid-controller-1  Waiting
+ Container froid-controller-2  Waiting
+ Container froid-controller-3  Waiting
+ Container froid-controller-3  Waiting
+ Container froid-controller-3  Waiting
+ Container froid-controller-1  Waiting
+ Container froid-controller-1  Waiting
+ Container froid-controller-2  Waiting
+ Container froid-controller-2  Waiting
+ Container froid-controller-3  Healthy
+ Container froid-controller-1  Healthy
+ Container froid-controller-3  Healthy
+ Container froid-controller-1  Healthy
+ Container froid-controller-2  Healthy
+ Container froid-controller-2  Healthy
+ Container froid-controller-2  Healthy
+ Container froid-kafka-2  Starting
+ Container froid-controller-1  Healthy
+ Container froid-kafka-3  Starting
+ Container froid-controller-3  Healthy
+ Container froid-kafka-1  Starting
+ Container froid-kafka-3  Started
+ Container froid-kafka-1  Started
+ Container froid-kafka-2  Started
+
+# attente de l'état healthy des 6 services
+$ docker compose -f docker-compose-froid.yml ps --format "{{.Name}} · {{.Status}}"
+froid-controller-1 · Up 21 seconds (healthy)
+froid-controller-2 · Up 21 seconds (healthy)
+froid-controller-3 · Up 21 seconds (healthy)
+froid-kafka-1 · Up 12 seconds (healthy)
+froid-kafka-2 · Up 12 seconds (healthy)
+froid-kafka-3 · Up 12 seconds (healthy)
+
+# journaux depuis la relance (2026-10-22T09:06:24Z) :
+$ docker logs froid-controller-1 --since 2026-10-22T09:06:24Z 2>&1 | grep -E 'already formatted|Formatting'
+All of the log directories are already formatted.
+$ docker logs froid-controller-2 --since 2026-10-22T09:06:24Z 2>&1 | grep -E 'already formatted|Formatting'
+All of the log directories are already formatted.
+$ docker logs froid-controller-3 --since 2026-10-22T09:06:24Z 2>&1 | grep -E 'already formatted|Formatting'
+All of the log directories are already formatted.
+$ docker logs froid-kafka-1 --since 2026-10-22T09:06:24Z 2>&1 | grep -E 'already formatted|Formatting'
+All of the log directories are already formatted.
+$ docker logs froid-kafka-2 --since 2026-10-22T09:06:24Z 2>&1 | grep -E 'already formatted|Formatting'
+All of the log directories are already formatted.
+$ docker logs froid-kafka-3 --since 2026-10-22T09:06:24Z 2>&1 | grep -E 'already formatted|Formatting'
+All of the log directories are already formatted.

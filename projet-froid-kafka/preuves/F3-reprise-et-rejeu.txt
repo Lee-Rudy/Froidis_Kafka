@@ -1,0 +1,51 @@
+# F3 - relance d'analyse-qualite SANS --from-beginning : reprend à son offset validé
+$ bin/kafka-console-consumer.sh --bootstrap-server kafka-1:19092 --topic mesures-brutes --group analyse-qualite --max-messages 3 --formatter-property print.key=true --formatter-property print.partition=true --formatter-property print.offset=true --timeout-ms 20000
+Partition:2	Offset:1	CAP-003	{"eventId":"E009","sensorId":"CAP-003","ts":"2026-10-21T09:05:01Z","temperatureC":3.9}
+Partition:1	Offset:5	CAP-001	{"eventId":"E008","sensorId":"CAP-001","ts":"2026-10-21T09:05:00Z","temperatureC":6.1}
+Partition:3	Offset:1	CAP-002	{"eventId":"E010","sensorId":"CAP-002","ts":"2026-10-21T09:05:02Z","temperatureC":5.0}
+Processed a total of 3 messages
+
+$ bin/kafka-consumer-groups.sh --bootstrap-server kafka-1:19092 --describe --group analyse-qualite
+
+Consumer group 'analyse-qualite' has no active members.
+
+GROUP           TOPIC           PARTITION  CURRENT-OFFSET  LOG-END-OFFSET  LAG             CONSUMER-ID     HOST            CLIENT-ID
+analyse-qualite mesures-brutes  0          0               0               0               -               -               -
+analyse-qualite mesures-brutes  1          6               6               0               -               -               -
+analyse-qualite mesures-brutes  2          2               2               0               -               -               -
+analyse-qualite mesures-brutes  3          2               2               0               -               -               -
+analyse-qualite mesures-brutes  4          0               0               0               -               -               -
+analyse-qualite mesures-brutes  5          0               0               0               -               -               -
+
+# F4 - nouveau groupe rejeu-incident avec --from-beginning : relit tout l'historique (10 mesures)
+$ bin/kafka-console-consumer.sh --bootstrap-server kafka-1:19092 --topic mesures-brutes --group rejeu-incident --from-beginning --max-messages 10 --formatter-property print.key=true --formatter-property print.partition=true --formatter-property print.offset=true --timeout-ms 20000
+Partition:3	Offset:0	CAP-002	{"eventId":"E002","sensorId":"CAP-002","ts":"2026-10-21T09:00:01Z","temperatureC":5.1}
+Partition:3	Offset:1	CAP-002	{"eventId":"E010","sensorId":"CAP-002","ts":"2026-10-21T09:05:02Z","temperatureC":5.0}
+Partition:1	Offset:0	CAP-001	{"eventId":"E001","sensorId":"CAP-001","ts":"2026-10-21T09:00:00Z","temperatureC":4.2}
+Partition:1	Offset:1	CAP-001	{"eventId":"E003","sensorId":"CAP-001","ts":"2026-10-21T09:00:02Z","temperatureC":8.7}
+Partition:1	Offset:2	CAP-001	{"eventId":"E004","sensorId":"CAP-001","ts":"2026-10-21T09:02:05Z","temperatureC":9.0}
+Partition:1	Offset:3	CAP-001	{"eventId":"E006","sensorId":"CAP-001","ts":"2026-10-21T09:03:00Z","temperatureC":9.4}
+Partition:1	Offset:4	CAP-001	{"eventId":"E007","sensorId":"CAP-001","ts":"2026-10-21T09:04:00Z","temperatureC":7.6}
+Partition:1	Offset:5	CAP-001	{"eventId":"E008","sensorId":"CAP-001","ts":"2026-10-21T09:05:00Z","temperatureC":6.1}
+Partition:2	Offset:0	CAP-003	{"eventId":"E005","sensorId":"CAP-003","ts":"2026-10-21T09:02:06Z","temperatureC":3.8}
+Partition:2	Offset:1	CAP-003	{"eventId":"E009","sensorId":"CAP-003","ts":"2026-10-21T09:05:01Z","temperatureC":3.9}
+Processed a total of 10 messages
+
+$ bin/kafka-consumer-groups.sh --bootstrap-server kafka-1:19092 --list
+analyse-qualite
+console-consumer-8079
+supervision-froid
+rejeu-incident
+
+$ bin/kafka-consumer-groups.sh --bootstrap-server kafka-1:19092 --describe --group supervision-froid
+
+Consumer group 'supervision-froid' has no active members.
+
+GROUP             TOPIC           PARTITION  CURRENT-OFFSET  LOG-END-OFFSET  LAG             CONSUMER-ID     HOST            CLIENT-ID
+supervision-froid mesures-brutes  0          0               0               0               -               -               -
+supervision-froid mesures-brutes  1          5               6               1               -               -               -
+supervision-froid mesures-brutes  2          1               2               1               -               -               -
+supervision-froid mesures-brutes  3          1               2               1               -               -               -
+supervision-froid mesures-brutes  4          0               0               0               -               -               -
+supervision-froid mesures-brutes  5          0               0               0               -               -               -
+

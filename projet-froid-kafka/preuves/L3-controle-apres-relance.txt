@@ -1,0 +1,52 @@
+# L3 - Contrôle après relance (13:07:01)
+$ bin/kafka-metadata-quorum.sh --bootstrap-server kafka-1:19092 describe --replication
+NodeId	DirectoryId           	LogEndOffset	Lag	LastFetchTimestamp	LastCaughtUpTimestamp	Status  	
+2     	qcQkn36mTYGryiSUju5IyA	3140        	0  	1792660023360     	1792660023360        	Leader  	
+1     	gOtFIhrIS1CROaiIe0wMyQ	3140        	0  	1792660023144     	1792660023144        	Follower	
+3     	KEjSrcxnTUSwHfG3A0pong	3140        	0  	1792660023144     	1792660023144        	Follower	
+5     	Shq0wDNI4oN09V9ORfqmfA	3140        	0  	1792660023144     	1792660023144        	Observer	
+4     	UFZPjPoSN_xzen0yfUEOzg	3140        	0  	1792660023144     	1792660023144        	Observer	
+6     	cnRBS-aM7vX6e4nv-iNAQA	3140        	0  	1792660023144     	1792660023144        	Observer	
+
+$ bin/kafka-get-offsets.sh --bootstrap-server kafka-1:19092 --topic mesures-brutes
+mesures-brutes:0:0
+mesures-brutes:1:8
+mesures-brutes:2:2
+mesures-brutes:3:2
+mesures-brutes:4:0
+mesures-brutes:5:0
+
+$ bin/kafka-topics.sh --bootstrap-server kafka-1:19092 --describe --under-replicated-partitions
+(vide = aucune partition sous-répliquée)
+
+$ bin/kafka-console-consumer.sh --bootstrap-server kafka-1:19092 --topic etat-capteurs --from-beginning --formatter-property print.key=true --formatter-property print.partition=true --formatter-property print.offset=true --timeout-ms 10000
+Partition:2	Offset:0	CAP-003	3.8
+Partition:1	Offset:2	CAP-001	9.0
+Partition:0	Offset:0	CAP-002	5.1
+Partition:1	Offset:3	CAP-001	9.2
+Partition:0	Offset:1	CAP-002	null
+Processed a total of 5 messages
+
+# Arrêt précédent : propre ou non ? (recherche dans les journaux depuis la relance)
+== froid-kafka-1
+[2026-10-22 09:06:37,535] INFO [LogLoader partition=__cluster_metadata-0, dir=/var/lib/kafka/data] Recovering unflushed segment 0. 0 recovered for __cluster_metadata-0. (org.apache.kafka.storage.internals.log.LogLoader)
+[2026-10-22 09:06:37,541] INFO [LogLoader partition=__cluster_metadata-0, dir=/var/lib/kafka/data] Producer state recovery took 1ms for snapshot load and 0ms for segment recovery from offset 0 (org.apache.kafka.storage.internals.log.UnifiedLog)
+[2026-10-22 09:06:37,675] INFO [LogLoader partition=__cluster_metadata-0, dir=/var/lib/kafka/data] Producer state recovery took 9ms for snapshot load and 0ms for segment recovery from offset 2857 (org.apache.kafka.storage.internals.log.UnifiedLog)
+== froid-kafka-2
+[2026-10-22 09:06:37,545] INFO [LogLoader partition=__cluster_metadata-0, dir=/var/lib/kafka/data] Recovering unflushed segment 0. 0 recovered for __cluster_metadata-0. (org.apache.kafka.storage.internals.log.LogLoader)
+[2026-10-22 09:06:37,550] INFO [LogLoader partition=__cluster_metadata-0, dir=/var/lib/kafka/data] Producer state recovery took 1ms for snapshot load and 0ms for segment recovery from offset 0 (org.apache.kafka.storage.internals.log.UnifiedLog)
+[2026-10-22 09:06:37,672] INFO [LogLoader partition=__cluster_metadata-0, dir=/var/lib/kafka/data] Producer state recovery took 11ms for snapshot load and 1ms for segment recovery from offset 2857 (org.apache.kafka.storage.internals.log.UnifiedLog)
+== froid-kafka-3
+[2026-10-22 09:06:37,572] INFO [LogLoader partition=__cluster_metadata-0, dir=/var/lib/kafka/data] Recovering unflushed segment 0. 0 recovered for __cluster_metadata-0. (org.apache.kafka.storage.internals.log.LogLoader)
+[2026-10-22 09:06:37,578] INFO [LogLoader partition=__cluster_metadata-0, dir=/var/lib/kafka/data] Producer state recovery took 1ms for snapshot load and 0ms for segment recovery from offset 0 (org.apache.kafka.storage.internals.log.UnifiedLog)
+[2026-10-22 09:06:37,723] INFO [LogLoader partition=__cluster_metadata-0, dir=/var/lib/kafka/data] Producer state recovery took 10ms for snapshot load and 0ms for segment recovery from offset 2857 (org.apache.kafka.storage.internals.log.UnifiedLog)
+== froid-controller-3
+[2026-10-22 09:06:29,984] INFO [LogLoader partition=__cluster_metadata-0, dir=/var/lib/kafka/data] Recovering unflushed segment 0. 0 recovered for __cluster_metadata-0. (org.apache.kafka.storage.internals.log.LogLoader)
+[2026-10-22 09:06:29,989] INFO [LogLoader partition=__cluster_metadata-0, dir=/var/lib/kafka/data] Producer state recovery took 0ms for snapshot load and 0ms for segment recovery from offset 0 (org.apache.kafka.storage.internals.log.UnifiedLog)
+[2026-10-22 09:06:30,113] INFO [LogLoader partition=__cluster_metadata-0, dir=/var/lib/kafka/data] Producer state recovery took 12ms for snapshot load and 0ms for segment recovery from offset 2860 (org.apache.kafka.storage.internals.log.UnifiedLog)
+
+# Fin du journal d'arrêt (avant relance) de froid-kafka-1 :
+[2026-10-22 09:06:20,672] INFO App info kafka.server for 4 unregistered (org.apache.kafka.common.utils.AppInfoParser)
+[2026-10-22 09:06:20,672] INFO [BrokerServer id=4] shut down completed (kafka.server.BrokerServer)
+[2026-10-22 09:06:20,672] INFO [BrokerServer id=4] Transition from SHUTTING_DOWN to SHUTDOWN (kafka.server.BrokerServer)
+[2026-10-22 09:06:20,673] INFO App info kafka.server for 4 unregistered (org.apache.kafka.common.utils.AppInfoParser)

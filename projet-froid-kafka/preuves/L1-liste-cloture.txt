@@ -1,0 +1,133 @@
+# Phase L - Liste de clôture avant arrêt (13:05:34)
+## 1. Quorum présent, trois contrôleurs votants
+$ bin/kafka-metadata-quorum.sh --bootstrap-server kafka-1:19092 describe --status
+ClusterId:              VJxGZOKwQIay5zzcsB_t3w
+LeaderId:               3
+LeaderEpoch:            1
+HighWatermark:          2560
+MaxFollowerLag:         0
+MaxFollowerLagTimeMs:   206
+CurrentVoters:          [{"id": 1, "directoryId": "gOtFIhrIS1CROaiIe0wMyQ", "endpoints": ["CONTROLLER://controller-1:9093"]}, {"id": 2, "directoryId": "qcQkn36mTYGryiSUju5IyA", "endpoints": ["CONTROLLER://controller-2:9093"]}, {"id": 3, "directoryId": "KEjSrcxnTUSwHfG3A0pong", "endpoints": ["CONTROLLER://controller-3:9093"]}]
+CurrentObservers:       [{"id": 5, "directoryId": "Shq0wDNI4oN09V9ORfqmfA"}, {"id": 4, "directoryId": "UFZPjPoSN_xzen0yfUEOzg"}, {"id": 6, "directoryId": "cnRBS-aM7vX6e4nv-iNAQA"}]
+
+## 2. Trois brokers actifs
+kafka-1:19092 (id: 4 rack: A isFenced: false) -> (
+kafka-3:19092 (id: 6 rack: C isFenced: false) -> (
+kafka-2:19092 (id: 5 rack: B isFenced: false) -> (
+## 3. Topics métier présents
+$ bin/kafka-topics.sh --bootstrap-server kafka-1:19092 --list
+__consumer_offsets
+alertes-temperature
+etat-capteurs
+mesures-agregees
+mesures-brutes
+tp-migration
+
+## 4. Un leader et un ISR complet pour chaque partition critique (sous-répliquées, puis sans leader)
+$ bin/kafka-topics.sh --bootstrap-server kafka-1:19092 --describe --under-replicated-partitions
+
+(vide = aucune partition sous-répliquée)
+
+$ bin/kafka-topics.sh --bootstrap-server kafka-1:19092 --describe --unavailable-partitions
+
+(vide = aucune partition sans leader)
+
+$ bin/kafka-topics.sh --bootstrap-server kafka-1:19092 --describe --under-min-isr-partitions
+
+(vide = aucune partition sous min ISR)
+
+$ bin/kafka-topics.sh --bootstrap-server kafka-1:19092 --describe --exclude-internal
+Topic: tp-migration	TopicId: UVtI7cbdT5-HmWBACLVxjQ	PartitionCount: 3	ReplicationFactor: 3	Configs: min.insync.replicas=2,unclean.leader.election.enable=false
+	Topic: tp-migration	Partition: 0	Leader: 4	Replicas: 4,5,6	Isr: 4,5,6	Elr: 	LastKnownElr: 
+	Topic: tp-migration	Partition: 1	Leader: 5	Replicas: 5,6,4	Isr: 4,5,6	Elr: 	LastKnownElr: 
+	Topic: tp-migration	Partition: 2	Leader: 6	Replicas: 6,4,5	Isr: 4,5,6	Elr: 	LastKnownElr: 
+Topic: alertes-temperature	TopicId: 5Be7kndkTf-d9wd5hpLfIg	PartitionCount: 3	ReplicationFactor: 3	Configs: min.insync.replicas=2,cleanup.policy=delete,retention.ms=2592000000,unclean.leader.election.enable=false
+	Topic: alertes-temperature	Partition: 0	Leader: 4	Replicas: 4,5,6	Isr: 4,5,6	Elr: 	LastKnownElr: 
+	Topic: alertes-temperature	Partition: 1	Leader: 5	Replicas: 5,6,4	Isr: 4,5,6	Elr: 	LastKnownElr: 
+	Topic: alertes-temperature	Partition: 2	Leader: 6	Replicas: 6,4,5	Isr: 4,5,6	Elr: 	LastKnownElr: 
+Topic: mesures-agregees	TopicId: NfxYJAybTsOvyLC9Ch6V0Q	PartitionCount: 3	ReplicationFactor: 3	Configs: min.insync.replicas=2,cleanup.policy=delete,retention.ms=2592000000,unclean.leader.election.enable=false
+	Topic: mesures-agregees	Partition: 0	Leader: 4	Replicas: 4,5,6	Isr: 4,5,6	Elr: 	LastKnownElr: 
+	Topic: mesures-agregees	Partition: 1	Leader: 5	Replicas: 5,6,4	Isr: 4,5,6	Elr: 	LastKnownElr: 
+	Topic: mesures-agregees	Partition: 2	Leader: 6	Replicas: 6,4,5	Isr: 4,5,6	Elr: 	LastKnownElr: 
+Topic: mesures-brutes	TopicId: QZ6VGzZ7ST6xkKzTjETI6Q	PartitionCount: 6	ReplicationFactor: 3	Configs: min.insync.replicas=2,cleanup.policy=delete,retention.ms=604800000,unclean.leader.election.enable=false
+	Topic: mesures-brutes	Partition: 0	Leader: 5	Replicas: 5,6,4	Isr: 4,5,6	Elr: 	LastKnownElr: 
+	Topic: mesures-brutes	Partition: 1	Leader: 6	Replicas: 6,4,5	Isr: 4,5,6	Elr: 	LastKnownElr: 
+	Topic: mesures-brutes	Partition: 2	Leader: 4	Replicas: 4,5,6	Isr: 4,5,6	Elr: 	LastKnownElr: 
+	Topic: mesures-brutes	Partition: 3	Leader: 5	Replicas: 5,6,4	Isr: 4,5,6	Elr: 	LastKnownElr: 
+	Topic: mesures-brutes	Partition: 4	Leader: 6	Replicas: 6,4,5	Isr: 4,5,6	Elr: 	LastKnownElr: 
+	Topic: mesures-brutes	Partition: 5	Leader: 4	Replicas: 4,5,6	Isr: 4,5,6	Elr: 	LastKnownElr: 
+Topic: etat-capteurs	TopicId: QqgIZwzESq6xPqObEtkC6w	PartitionCount: 3	ReplicationFactor: 3	Configs: min.insync.replicas=2,cleanup.policy=compact,unclean.leader.election.enable=false
+	Topic: etat-capteurs	Partition: 0	Leader: 6	Replicas: 6,4,5	Isr: 4,5,6	Elr: 	LastKnownElr: 
+	Topic: etat-capteurs	Partition: 1	Leader: 4	Replicas: 4,5,6	Isr: 4,5,6	Elr: 	LastKnownElr: 
+	Topic: etat-capteurs	Partition: 2	Leader: 5	Replicas: 5,6,4	Isr: 4,5,6	Elr: 	LastKnownElr: 
+
+## 5. Groupes capables de relire (offsets conservés)
+$ bin/kafka-consumer-groups.sh --bootstrap-server kafka-1:19092 --describe --all-groups
+
+Consumer group 'analyse-qualite' has no active members.
+
+GROUP           TOPIC           PARTITION  CURRENT-OFFSET  LOG-END-OFFSET  LAG             CONSUMER-ID     HOST            CLIENT-ID
+analyse-qualite mesures-brutes  0          0               0               0               -               -               -
+analyse-qualite mesures-brutes  1          6               8               2               -               -               -
+analyse-qualite mesures-brutes  2          2               2               0               -               -               -
+analyse-qualite mesures-brutes  3          2               2               0               -               -               -
+analyse-qualite mesures-brutes  4          0               0               0               -               -               -
+analyse-qualite mesures-brutes  5          0               0               0               -               -               -
+
+Consumer group 'console-consumer-34480' has no active members.
+
+Consumer group 'console-consumer-48000' has no active members.
+
+Consumer group 'console-consumer-7238' has no active members.
+
+Consumer group 'console-consumer-77982' has no active members.
+
+Consumer group 'console-consumer-8079' has no active members.
+
+Consumer group 'rejeu-incident' has no active members.
+
+GROUP           TOPIC           PARTITION  CURRENT-OFFSET  LOG-END-OFFSET  LAG             CONSUMER-ID     HOST            CLIENT-ID
+rejeu-incident  mesures-brutes  0          0               0               0               -               -               -
+rejeu-incident  mesures-brutes  1          6               8               2               -               -               -
+rejeu-incident  mesures-brutes  2          2               2               0               -               -               -
+rejeu-incident  mesures-brutes  3          2               2               0               -               -               -
+rejeu-incident  mesures-brutes  4          0               0               0               -               -               -
+rejeu-incident  mesures-brutes  5          0               0               0            
+Consumer group 'supervision-froid' has no active members.
+   -               -               -
+
+GROUP             TOPIC           PARTITION  CURRENT-OFFSET  LOG-END-OFFSET  LAG             CONSUMER-ID     HOST            CLIENT-ID
+supervision-froid mesures-brutes  0          0               0               0               -               -               -
+supervision-froid mesures-brutes  1          5               8               3               -               -               -
+supervision-froid mesures-brutes  2          1               2               1               -               -               -
+supervision-froid mesures-brutes  3          1               2               1               -               -               -
+supervision-froid mesures-brutes  4          0               0               0               -               -               -
+supervision-froid mesures-brutes  5          0               0               0               -               -               -
+
+## 6. Configurations dynamiques consignées (aucun réglage de démonstration restant)
+$ bin/kafka-configs.sh --bootstrap-server kafka-1:19092 --describe --entity-type topics --entity-name mesures-brutes
+Dynamic configs for topic mesures-brutes are:
+  cleanup.policy=delete sensitive=false synonyms={DYNAMIC_TOPIC_CONFIG:cleanup.policy=delete, DEFAULT_CONFIG:log.cleanup.policy=delete}
+  min.insync.replicas=2 sensitive=false synonyms={DYNAMIC_TOPIC_CONFIG:min.insync.replicas=2, DYNAMIC_DEFAULT_BROKER_CONFIG:min.insync.replicas=2, DEFAULT_CONFIG:min.insync.replicas=1}
+  retention.ms=604800000 sensitive=false synonyms={DYNAMIC_TOPIC_CONFIG:retention.ms=604800000}
+
+$ bin/kafka-configs.sh --bootstrap-server kafka-1:19092 --describe --entity-type topics --entity-name mesures-agregees
+Dynamic configs for topic mesures-agregees are:
+  cleanup.policy=delete sensitive=false synonyms={DYNAMIC_TOPIC_CONFIG:cleanup.policy=delete, DEFAULT_CONFIG:log.cleanup.policy=delete}
+  min.insync.replicas=2 sensitive=false synonyms={DYNAMIC_TOPIC_CONFIG:min.insync.replicas=2, DYNAMIC_DEFAULT_BROKER_CONFIG:min.insync.replicas=2, DEFAULT_CONFIG:min.insync.replicas=1}
+  retention.ms=2592000000 sensitive=false synonyms={DYNAMIC_TOPIC_CONFIG:retention.ms=2592000000}
+
+$ bin/kafka-configs.sh --bootstrap-server kafka-1:19092 --describe --entity-type topics --entity-name alertes-temperature
+Dynamic configs for topic alertes-temperature are:
+  cleanup.policy=delete sensitive=false synonyms={DYNAMIC_TOPIC_CONFIG:cleanup.policy=delete, DEFAULT_CONFIG:log.cleanup.policy=delete}
+  min.insync.replicas=2 sensitive=false synonyms={DYNAMIC_TOPIC_CONFIG:min.insync.replicas=2, DYNAMIC_DEFAULT_BROKER_CONFIG:min.insync.replicas=2, DEFAULT_CONFIG:min.insync.replicas=1}
+  retention.ms=2592000000 sensitive=false synonyms={DYNAMIC_TOPIC_CONFIG:retention.ms=2592000000}
+
+$ bin/kafka-configs.sh --bootstrap-server kafka-1:19092 --describe --entity-type topics --entity-name etat-capteurs
+Dynamic configs for topic etat-capteurs are:
+  cleanup.policy=compact sensitive=false synonyms={DYNAMIC_TOPIC_CONFIG:cleanup.policy=compact, DEFAULT_CONFIG:log.cleanup.policy=delete}
+  min.insync.replicas=2 sensitive=false synonyms={DYNAMIC_TOPIC_CONFIG:min.insync.replicas=2, DYNAMIC_DEFAULT_BROKER_CONFIG:min.insync.replicas=2, DEFAULT_CONFIG:min.insync.replicas=1}
+
+$ bin/kafka-configs.sh --bootstrap-server kafka-1:19092 --describe --entity-type topics --entity-name tp-migration
+Dynamic configs for topic tp-migration are:
+

@@ -1,0 +1,24 @@
+# Plus de 20 s après le dernier envoi (13:00:26) : on envoie CAP-001:9.2 (même clé, même partition 1)
+$ bin/kafka-console-producer.sh --bootstrap-server kafka-1:19092 --topic etat-capteurs --reader-property parse.key=true --reader-property key.separator=:
+CAP-001:9.2
+# Attente d'environ 1 minute (compaction asynchrone)
+
+# APRÈS compaction (13:01:33) :
+$ bin/kafka-console-consumer.sh --bootstrap-server kafka-1:19092 --topic etat-capteurs --from-beginning --formatter-property print.key=true --formatter-property print.partition=true --formatter-property print.offset=true --timeout-ms 10000
+Partition:0	Offset:0	CAP-002	5.1
+Partition:2	Offset:0	CAP-003	3.8
+Partition:1	Offset:2	CAP-001	9.0
+Partition:1	Offset:3	CAP-001	9.2
+Processed a total of 4 messages
+
+$ ls -l /var/lib/kafka/data/etat-capteurs-1   (broker 4)
+total 24
+-rw-r--r-- 1 appuser appuser        0 Oct 22 08:59 00000000000000000000.index
+-rw-r--r-- 1 appuser appuser       78 Oct 22 08:59 00000000000000000000.log
+-rw-r--r-- 1 appuser appuser       12 Oct 22 08:59 00000000000000000000.timeindex
+-rw-r--r-- 1 appuser appuser 10485760 Oct 22 09:00 00000000000000000003.index
+-rw-r--r-- 1 appuser appuser       78 Oct 22 09:00 00000000000000000003.log
+-rw-r--r-- 1 appuser appuser       56 Oct 22 09:00 00000000000000000003.snapshot
+-rw-r--r-- 1 appuser appuser 10485756 Oct 22 09:00 00000000000000000003.timeindex
+-rw-r--r-- 1 appuser appuser        8 Oct 22 08:49 leader-epoch-checkpoint
+-rw-r--r-- 1 appuser appuser       43 Oct 22 08:49 partition.metadata

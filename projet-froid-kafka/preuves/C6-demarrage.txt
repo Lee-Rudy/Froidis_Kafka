@@ -1,0 +1,76 @@
+$ docker compose -f docker-compose-froid.yml config --quiet
+(aucune erreur)
+
+$ docker compose -f docker-compose-froid.yml up -d --wait
+ Network projet-froid_default  Creating
+ Network projet-froid_default  Created
+ Volume projet-froid_controller-3  Creating
+ Volume projet-froid_controller-3  Created
+ Volume projet-froid_kafka-1  Creating
+ Volume projet-froid_kafka-1  Created
+ Volume projet-froid_kafka-2  Creating
+ Volume projet-froid_kafka-2  Created
+ Volume projet-froid_kafka-3  Creating
+ Volume projet-froid_kafka-3  Created
+ Volume projet-froid_controller-1  Creating
+ Volume projet-froid_controller-1  Created
+ Volume projet-froid_controller-2  Creating
+ Volume projet-froid_controller-2  Created
+ Container froid-controller-1  Creating
+ Container froid-controller-2  Creating
+ Container froid-controller-3  Creating
+ Container froid-controller-3  Created
+ Container froid-controller-1  Created
+ Container froid-controller-2  Created
+ Container froid-kafka-1  Creating
+ Container froid-kafka-2  Creating
+ Container froid-kafka-3  Creating
+ Container froid-kafka-1  Created
+ Container froid-kafka-3  Created
+ Container froid-kafka-2  Created
+ Container froid-controller-3  Starting
+ Container froid-controller-2  Starting
+ Container froid-controller-1  Starting
+ Container froid-controller-1  Started
+ Container froid-controller-2  Started
+ Container froid-controller-3  Started
+ Container froid-controller-3  Waiting
+ Container froid-controller-1  Waiting
+ Container froid-controller-2  Waiting
+ Container froid-controller-3  Waiting
+ Container froid-controller-1  Waiting
+ Container froid-controller-1  Waiting
+ Container froid-controller-2  Waiting
+ Container froid-controller-2  Waiting
+ Container froid-controller-3  Waiting
+ Container froid-controller-1  Healthy
+ Container froid-controller-3  Healthy
+ Container froid-controller-3  Healthy
+ Container froid-controller-3  Healthy
+ Container froid-controller-2  Healthy
+ Container froid-controller-2  Healthy
+ Container froid-kafka-2  Starting
+ Container froid-controller-1  Healthy
+ Container froid-kafka-1  Starting
+ Container froid-controller-1  Healthy
+ Container froid-controller-2  Healthy
+ Container froid-kafka-3  Starting
+ Container froid-kafka-2  Started
+ Container froid-kafka-1  Started
+ Container froid-kafka-3  Started
+ Container froid-controller-1  Waiting
+ Container froid-controller-2  Waiting
+ Container froid-controller-3  Waiting
+ Container froid-kafka-1  Waiting
+ Container froid-kafka-2  Waiting
+ Container froid-kafka-3  Waiting
+ Container froid-controller-2  Healthy
+ Container froid-controller-1  Healthy
+ Container froid-controller-3  Healthy
+ Container froid-kafka-2  Healthy
+ Container froid-kafka-1  Healthy
+ Container froid-kafka-3  Healthy
+
+real	0m17.267s
+user	0m0.090s
+sys	0m0.030s

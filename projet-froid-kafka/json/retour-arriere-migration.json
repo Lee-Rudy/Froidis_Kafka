@@ -1,0 +1,1 @@
+{"version":1,"partitions":[{"topic":"tp-migration","partition":0,"replicas":[5],"log_dirs":["/var/lib/kafka/data"]},{"topic":"tp-migration","partition":1,"replicas":[6],"log_dirs":["/var/lib/kafka/data"]},{"topic":"tp-migration","partition":2,"replicas":[4],"log_dirs":["/var/lib/kafka/data"]}]}

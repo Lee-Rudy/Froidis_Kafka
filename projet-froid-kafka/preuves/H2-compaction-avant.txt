@@ -1,0 +1,20 @@
+# H2 - Topic compacté (12:59:55)
+$ bin/kafka-configs.sh --bootstrap-server kafka-1:19092 --alter --entity-type topics --entity-name etat-capteurs --add-config segment.ms=20000,min.cleanable.dirty.ratio=0.01
+Completed updating config for topic etat-capteurs.
+
+$ bin/kafka-console-producer.sh --bootstrap-server kafka-1:19092 --topic etat-capteurs --reader-property parse.key=true --reader-property key.separator=:
+CAP-001:4.2
+CAP-002:5.1
+CAP-001:8.7
+CAP-003:3.8
+CAP-001:9.0
+(envoyé à 12:59:59)
+
+# AVANT compaction :
+$ bin/kafka-console-consumer.sh --bootstrap-server kafka-1:19092 --topic etat-capteurs --from-beginning --formatter-property print.key=true --formatter-property print.partition=true --formatter-property print.offset=true --timeout-ms 10000
+Partition:1	Offset:0	CAP-001	4.2
+Partition:1	Offset:1	CAP-001	8.7
+Partition:1	Offset:2	CAP-001	9.0
+Partition:2	Offset:0	CAP-003	3.8
+Partition:0	Offset:0	CAP-002	5.1
+Processed a total of 5 messages

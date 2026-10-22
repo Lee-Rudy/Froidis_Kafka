@@ -1,0 +1,9 @@
+### essai 1 (12:50:35)
+$ bin/kafka-console-consumer.sh --bootstrap-server kafka-1:19092 --topic mesures-brutes --from-beginning --formatter-property print.key=true --formatter-property print.partition=true --formatter-property print.offset=true --max-messages 5 --timeout-ms 20000
+The consumer rebalance protocol (KIP-848) is production-ready! Set group.protocol=consumer to try it out. See https://kafka.apache.org/documentation/#consumer_rebalance_protocol
+Partition:2	Offset:0	CAP-003	{"eventId":"E005","sensorId":"CAP-003","ts":"2026-10-21T09:02:06Z","temperatureC":3.8}
+Partition:1	Offset:0	CAP-001	{"eventId":"E001","sensorId":"CAP-001","ts":"2026-10-21T09:00:00Z","temperatureC":4.2}
+Partition:1	Offset:1	CAP-001	{"eventId":"E003","sensorId":"CAP-001","ts":"2026-10-21T09:00:02Z","temperatureC":8.7}
+Partition:1	Offset:2	CAP-001	{"eventId":"E004","sensorId":"CAP-001","ts":"2026-10-21T09:02:05Z","temperatureC":9.0}
+Partition:3	Offset:0	CAP-002	{"eventId":"E002","sensorId":"CAP-002","ts":"2026-10-21T09:00:01Z","temperatureC":5.1}
+Processed a total of 5 messages

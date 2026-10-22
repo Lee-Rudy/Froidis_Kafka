@@ -1,0 +1,13 @@
+$ bin/kafka-configs.sh --bootstrap-server kafka-1:19092 --describe --entity-type topics --entity-name mesures-brutes
+Dynamic configs for topic mesures-brutes are:
+  cleanup.policy=delete sensitive=false synonyms={DYNAMIC_TOPIC_CONFIG:cleanup.policy=delete, DEFAULT_CONFIG:log.cleanup.policy=delete}
+  min.insync.replicas=2 sensitive=false synonyms={DYNAMIC_TOPIC_CONFIG:min.insync.replicas=2, DYNAMIC_DEFAULT_BROKER_CONFIG:min.insync.replicas=2, DEFAULT_CONFIG:min.insync.replicas=1}
+  retention.ms=604800000 sensitive=false synonyms={DYNAMIC_TOPIC_CONFIG:retention.ms=604800000}
+
+$ bin/kafka-configs.sh --bootstrap-server kafka-1:19092 --describe --entity-type brokers --entity-default
+Default configs for brokers in the cluster are:
+  min.insync.replicas=2 sensitive=false synonyms={DYNAMIC_DEFAULT_BROKER_CONFIG:min.insync.replicas=2}
+
+$ bin/kafka-configs.sh --bootstrap-server kafka-1:19092 --describe --entity-type brokers --entity-name 4
+Dynamic configs for broker 4 are:
+

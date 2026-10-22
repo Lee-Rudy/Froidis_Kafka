@@ -1,0 +1,17 @@
+# F2 - analyse-qualite est arrêté ; on produit 3 nouvelles mesures
+$ bin/kafka-console-producer.sh --bootstrap-server kafka-1:19092 --topic mesures-brutes --reader-property parse.key=true --reader-property key.separator=: --command-property acks=all --command-property enable.idempotence=true
+CAP-001:{"eventId":"E008","sensorId":"CAP-001","ts":"2026-10-21T09:05:00Z","temperatureC":6.1}
+CAP-003:{"eventId":"E009","sensorId":"CAP-003","ts":"2026-10-21T09:05:01Z","temperatureC":3.9}
+CAP-002:{"eventId":"E010","sensorId":"CAP-002","ts":"2026-10-21T09:05:02Z","temperatureC":5.0}
+
+$ bin/kafka-consumer-groups.sh --bootstrap-server kafka-1:19092 --describe --group analyse-qualite
+
+Consumer group 'analyse-qualite' has no active members.
+
+GROUP           TOPIC           PARTITION  CURRENT-OFFSET  LOG-END-OFFSET  LAG             CONSUMER-ID     HOST            CLIENT-ID
+analyse-qualite mesures-brutes  0          0               0               0               -               -               -
+analyse-qualite mesures-brutes  1          5               6               1               -               -               -
+analyse-qualite mesures-brutes  2          1               2               1               -               -               -
+analyse-qualite mesures-brutes  3          1               2               1               -               -               -
+analyse-qualite mesures-brutes  4          0               0               0               -               -               -
+analyse-qualite mesures-brutes  5          0               0               0               -               -               -
