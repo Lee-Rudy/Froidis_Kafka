@@ -1,0 +1,112 @@
+# J/L - Remise en service après un arrêt BRUTAL : crash du moteur WSL de Docker Desktop pendant le premier démarrage (25/10/2026)
+# Poste de validation, cluster reconstruit à partir du dépôt. Heures locales UTC+3 dans les lignes « # », UTC dans les journaux Kafka.
+# Contexte : à 18:47:55 UTC, Docker Desktop a arrêté son moteur (wsl-bootstrap « exit status 1 », mémoire de l'hôte saturée) ;
+# les 6 conteneurs sont sortis en Exited (255). Les volumes venaient d'être formatés.
+
+# relance apres arret brutal (moteur Docker redemarre) : 21:49:41 local = 2026-10-25T18:49:41Z
+$ docker compose -f docker-compose-froid.yml ps -a
+froid-controller-1 · Exited (255) About a minute ago
+froid-controller-2 · Exited (255) About a minute ago
+froid-controller-3 · Exited (255) About a minute ago
+froid-kafka-1 · Exited (255) About a minute ago
+froid-kafka-2 · Exited (255) About a minute ago
+froid-kafka-3 · Exited (255) About a minute ago
+$ docker compose -f docker-compose-froid.yml start
+ Container froid-controller-3 Starting 
+ Container froid-controller-1 Starting 
+ Container froid-controller-2 Starting 
+ Container froid-controller-3 Started 
+ Container froid-controller-1 Started 
+ Container froid-controller-2 Started 
+ Container froid-controller-2 Healthy 
+ Container froid-controller-2 Healthy 
+ Container froid-controller-2 Healthy 
+ Container froid-controller-3 Healthy 
+ Container froid-controller-3 Healthy 
+ Container froid-controller-1 Healthy 
+ Container froid-kafka-1 Starting 
+ Container froid-controller-1 Healthy 
+ Container froid-controller-3 Healthy 
+ Container froid-kafka-2 Starting 
+ Container froid-controller-1 Healthy 
+ Container froid-kafka-3 Starting 
+ Container froid-kafka-1 Started 
+ Container froid-kafka-2 Started 
+ Container froid-kafka-3 Started 
+code=0
+# 6 services healthy apres 86 s
+froid-controller-1 · Up About a minute (healthy)
+froid-controller-2 · Up About a minute (healthy)
+froid-controller-3 · Up About a minute (healthy)
+froid-kafka-1 · Up About a minute (healthy)
+froid-kafka-2 · Up 59 seconds (healthy)
+froid-kafka-3 · Up 59 seconds (healthy)
+# journaux depuis la relance (2026-10-25T18:49:41Z)
+$ docker logs froid-controller-1 --since 2026-10-25T18:49:41Z 2>&1 | grep -E 'already formatted|Formatting'
+All of the log directories are already formatted.
+$ docker logs froid-controller-2 --since 2026-10-25T18:49:41Z 2>&1 | grep -E 'already formatted|Formatting'
+All of the log directories are already formatted.
+$ docker logs froid-controller-3 --since 2026-10-25T18:49:41Z 2>&1 | grep -E 'already formatted|Formatting'
+All of the log directories are already formatted.
+$ docker logs froid-kafka-1 --since 2026-10-25T18:49:41Z 2>&1 | grep -E 'already formatted|Formatting'
+$ docker logs froid-kafka-2 --since 2026-10-25T18:49:41Z 2>&1 | grep -E 'already formatted|Formatting'
+$ docker logs froid-kafka-3 --since 2026-10-25T18:49:41Z 2>&1 | grep -E 'already formatted|Formatting'
+
+# reprise apres arret non propre (extrait froid-kafka-1 et froid-controller-1)
+[2026-10-25 18:50:03,149] INFO [LogLoader partition=__cluster_metadata-0, dir=/var/lib/kafka/data] Recovering unflushed segment 0. 0 recovered for __cluster_metadata-0. (org.apache.kafka.storage.internals.log.LogLoader)
+	unclean.leader.election.enable = false
+	unclean.leader.election.interval.ms = 300000
+
+$ bin/kafka-metadata-quorum.sh --bootstrap-server kafka-1:19092 describe --status
+ClusterId:              VJxGZOKwQIay5zzcsB_t3w
+LeaderId:               2
+LeaderEpoch:            3
+HighWatermark:          346
+MaxFollowerLag:         1
+MaxFollowerLagTimeMs:   448
+CurrentVoters:          [{"id": 1, "directoryId": "gOtFIhrIS1CROaiIe0wMyQ", "endpoints": ["CONTROLLER://controller-1:9093"]}, {"id": 2, "directoryId": "qcQkn36mTYGryiSUju5IyA", "endpoints": ["CONTROLLER://controller-2:9093"]}, {"id": 3, "directoryId": "KEjSrcxnTUSwHfG3A0pong", "endpoints": ["CONTROLLER://controller-3:9093"]}]
+CurrentObservers:       [{"id": 5, "directoryId": "2gb-itrNBq0__aaFYkbHVg"}, {"id": 4, "directoryId": "p-6mvO8t6mde0d-rweTBqQ"}, {"id": 6, "directoryId": "iWL-pF9dMy-_OJ6JrZWamg"}]
+
+$ bin/kafka-metadata-quorum.sh --bootstrap-server kafka-1:19092 describe --replication
+NodeId	DirectoryId           	LogEndOffset	Lag	LastFetchTimestamp	LastCaughtUpTimestamp	Status  	
+2     	qcQkn36mTYGryiSUju5IyA	368         	0  	1792954316446     	1792954316446        	Leader  	
+1     	gOtFIhrIS1CROaiIe0wMyQ	368         	0  	1792954316137     	1792954316137        	Follower	
+3     	KEjSrcxnTUSwHfG3A0pong	368         	0  	1792954316124     	1792954316124        	Follower	
+5     	2gb-itrNBq0__aaFYkbHVg	368         	0  	1792954316124     	1792954316124        	Observer	
+4     	p-6mvO8t6mde0d-rweTBqQ	368         	0  	1792954316142     	1792954316142        	Observer	
+6     	iWL-pF9dMy-_OJ6JrZWamg	368         	0  	1792954316127     	1792954316127        	Observer	
+
+$ bin/kafka-broker-api-versions.sh --bootstrap-server kafka-1:19092 | grep -E '^kafka-'
+kafka-1:19092 (id: 4 rack: A isFenced: false) -> (
+kafka-3:19092 (id: 6 rack: C isFenced: false) -> (
+kafka-2:19092 (id: 5 rack: B isFenced: false) -> (
+# recreation des 3 conteneurs brokers (volumes conserves) : 2026-10-25T18:53:22Z
+ Container froid-controller-1 Healthy 
+ Container froid-controller-2 Healthy 
+ Container froid-controller-3 Healthy 
+ Container froid-kafka-1 Healthy 
+ Container froid-kafka-1 Recreate 
+ Container froid-kafka-1 Recreated 
+ Container froid-kafka-1 Started 
+ Container froid-kafka-2 Healthy 
+ Container froid-kafka-2 Recreate 
+ Container froid-kafka-2 Recreated 
+ Container froid-kafka-2 Started 
+ Container froid-kafka-3 Healthy 
+ Container froid-kafka-3 Recreate 
+ Container froid-kafka-3 Recreated 
+ Container froid-kafka-3 Started 
+code=0 duree=109s
+froid-controller-1 · Up 5 minutes (healthy)
+froid-controller-2 · Up 5 minutes (healthy)
+froid-controller-3 · Up 5 minutes (healthy)
+froid-kafka-1 · Up About a minute (healthy)
+froid-kafka-2 · Up About a minute (healthy)
+froid-kafka-3 · Up About a minute (healthy)
+$ docker logs froid-kafka-1 2>&1 | grep -E 'already formatted|Formatting'
+All of the log directories are already formatted.
+$ docker logs froid-kafka-2 2>&1 | grep -E 'already formatted|Formatting'
+All of the log directories are already formatted.
+$ docker logs froid-kafka-3 2>&1 | grep -E 'already formatted|Formatting'
+All of the log directories are already formatted.
+lignes journal kafka-1 : 1032

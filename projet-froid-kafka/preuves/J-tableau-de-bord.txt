@@ -1,0 +1,78 @@
+# J - Tableau de bord de supervision (scripts/tableau-de-bord.sh, version corrigée), poste de validation, 25/10/2026.
+# Heures locales (UTC+3). Relevé 1 : 8 min après la remise en service de 19:45:57 UTC (arrêt complet puis docker compose start).
+
+$ bash scripts/tableau-de-bord.sh   [hôte]
+=== Tableau de bord FROIDIS : 25/10/2026 22:54:32 (journaux : 15m) ===
+[OK           ] Contrôleur actif (quorum)         leader 1, 3 votants, retard max 0
+[OK           ] Brokers actifs                    3 / 3 (ids 4, 5, 6)
+[OK           ] Sous-réplication (URP)            0 partition
+[OK           ] Sous le min ISR                   0 partition (et 0 au min ISR)
+[OK           ] Partitions hors ligne             0 partition
+[OK           ] Leaders préférés                  toutes les partitions métier
+[OK           ] Retard des consommateurs (LAG)    aucun groupe avec offsets validés
+[OK           ] Disque froid-kafka-1              2 % occupé, données Kafka 1.6M
+[OK           ] Disque froid-kafka-2              2 % occupé, données Kafka 1.5M
+[OK           ] Disque froid-kafka-3              2 % occupé, données Kafka 1.4M
+[OK           ] Répertoires de journaux           3 en ligne, 0 hors ligne
+[AVERTISSEMENT] Journal froid-controller-1        3 ERROR/FATAL : lire docker logs --since 15m froid-controller-1
+[AVERTISSEMENT] Journal froid-controller-2        1 ERROR/FATAL : lire docker logs --since 15m froid-controller-2
+[AVERTISSEMENT] Journal froid-controller-3        2 ERROR/FATAL : lire docker logs --since 15m froid-controller-3
+[OK           ] Journal froid-kafka-1             0 ERROR/FATAL
+[OK           ] Journal froid-kafka-2             0 ERROR/FATAL
+[OK           ] Journal froid-kafka-3             0 ERROR/FATAL
+=== Bilan : avertissement(s) à examiner ===
+(code retour : 1)
+(Les ERROR des contrôleurs sont celles du démarrage : 3 et 1 « Unexpected error handling request CONTROLLER_REGISTRATION »,
+ 2 « Unexpected error handling request DESCRIBE_CLUSTER », toutes à 19:46-19:47 UTC. Lues et classées : bruit connu du démarrage.)
+
+# Relevé 2 : script complété (contrôleurs en service via le healthcheck Docker, seuil de retard du quorum, réglages et topics de démonstration).
+$ bash scripts/tableau-de-bord.sh   [hôte]
+=== Tableau de bord FROIDIS : 25/10/2026 23:05:47 (journaux : 15m) ===
+[OK           ] Contrôleur actif (quorum)         leader 1, 3 votants en service, retard max 0
+[OK           ] Brokers actifs                    3 / 3 (ids 4, 5, 6)
+[OK           ] Sous-réplication (URP)            0 partition
+[OK           ] Sous le min ISR                   0 partition (et 0 au min ISR)
+[OK           ] Partitions hors ligne             0 partition
+[OK           ] Leaders préférés                  toutes les partitions métier
+[OK           ] Retard des consommateurs (LAG)    aucun groupe avec offsets validés
+[OK           ] Disque froid-kafka-1              2 % occupé, données Kafka 1.7M
+[OK           ] Disque froid-kafka-2              2 % occupé, données Kafka 1.6M
+[OK           ] Disque froid-kafka-3              2 % occupé, données Kafka 1.5M
+[OK           ] Répertoires de journaux           3 en ligne, 0 hors ligne
+[OK           ] Réglages de démonstration         aucun sur etat-capteurs, aucun topic demo-*
+[AVERTISSEMENT] Journal froid-controller-1        101 ERROR/FATAL : lire docker logs --since 15m froid-controller-1
+[OK           ] Journal froid-controller-2        0 ERROR/FATAL
+[AVERTISSEMENT] Journal froid-controller-3        29 ERROR/FATAL : lire docker logs --since 15m froid-controller-3
+[OK           ] Journal froid-kafka-1             0 ERROR/FATAL
+[OK           ] Journal froid-kafka-2             0 ERROR/FATAL
+[OK           ] Journal froid-kafka-3             0 ERROR/FATAL
+=== Bilan : avertissement(s) à examiner ===
+(code retour : 1)
+(Classement des 101 + 29 ERROR, lues : toutes « NotControllerException » sur des BROKER_HEARTBEAT, émises entre 20:07 et 20:08 UTC
+ pendant des bascules du leader du quorum (4 prises de leadership par le contrôleur 1 et 3 par le contrôleur 3 en 20 min).
+ Cause : hôte Windows saturé (0,5 Go de RAM libre, 1,9 Go d'engagement libre). Aucune partition affectée : tous les autres
+ indicateurs sont OK. Action : ressources de l'hôte, consigné ; aucune action Kafka.)
+
+$ bash scripts/tableau-de-bord.sh 3m   [hôte]   (relevé 3 : après l'arrêt propre et la relance de 20:19-20:22 UTC, fenêtre de journaux de 3 min)
+=== Tableau de bord FROIDIS : 25/10/2026 23:24:04 (journaux : 3m) ===
+[OK           ] Contrôleur actif (quorum)         leader 1, 3 votants en service, retard max 0
+[OK           ] Brokers actifs                    3 / 3 (ids 4, 5, 6)
+[OK           ] Sous-réplication (URP)            0 partition
+[OK           ] Sous le min ISR                   0 partition (et 0 au min ISR)
+[OK           ] Partitions hors ligne             0 partition
+[OK           ] Leaders préférés                  toutes les partitions métier
+[OK           ] Retard des consommateurs (LAG)    aucun groupe avec offsets validés
+[OK           ] Disque froid-kafka-1              2 % occupé, données Kafka 1.9M
+[OK           ] Disque froid-kafka-2              2 % occupé, données Kafka 1.9M
+[OK           ] Disque froid-kafka-3              2 % occupé, données Kafka 1.7M
+[OK           ] Répertoires de journaux           3 en ligne, 0 hors ligne
+[OK           ] Réglages de démonstration         aucun sur etat-capteurs, aucun topic demo-*
+[OK           ] Journal froid-controller-1        0 ERROR/FATAL
+[OK           ] Journal froid-controller-2        0 ERROR/FATAL
+[OK           ] Journal froid-controller-3        0 ERROR/FATAL
+[OK           ] Journal froid-kafka-1             0 ERROR/FATAL
+[OK           ] Journal froid-kafka-2             0 ERROR/FATAL
+[OK           ] Journal froid-kafka-3             0 ERROR/FATAL
+=== Bilan : tout est OK ===
+(code retour : 0)
+(Go / no-go : feu vert. Arrêt propre avec stop -t 120, relance sans reformatage, offsets identiques : voir J-arret-propre-stop-t120.txt.)

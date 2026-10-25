@@ -1,0 +1,25 @@
+# I (complément) - Topic de RF 1 avec min.insync.replicas=2 (cas de tp-migration en I1-I3) : l'écriture acks=all est-elle acceptée ? (25/10/2026, poste de validation)
+$ bin/kafka-topics.sh --bootstrap-server kafka-1:19092 --create --topic demo-rf1 --partitions 1 --replication-factor 1
+Created topic demo-rf1.
+
+$ bin/kafka-topics.sh --bootstrap-server kafka-1:19092 --describe --topic demo-rf1
+Topic: demo-rf1	TopicId: 26kkYYu7RV-iHYTGs2jSHQ	PartitionCount: 1	ReplicationFactor: 1	Configs: min.insync.replicas=2,unclean.leader.election.enable=false
+	Topic: demo-rf1	Partition: 0	Leader: 6	Replicas: 6	Isr: 6	Elr: 	LastKnownElr: 
+
+$ bin/kafka-topics.sh --bootstrap-server kafka-1:19092 --describe --under-min-isr-partitions
+	Topic: demo-rf1	Partition: 0	Leader: 6	Replicas: 6	Isr: 6	Elr: 	LastKnownElr: 
+
+$ bin/kafka-topics.sh --bootstrap-server kafka-1:19092 --describe --at-min-isr-partitions
+
+$ bin/kafka-console-producer.sh --bootstrap-server kafka-1:19092 --topic demo-rf1 --command-property acks=all --command-property enable.idempotence=true   (une ligne : test-rf1)
+[2026-10-25 20:16:39,078] WARN [Producer clientId=console-producer] Got error produce response with correlation id 7 on topic-partition demo-rf1-0, retrying (2 attempts left). Error: REQUEST_TIMED_OUT. Error Message: Disconnected from node 6 due to timeout (org.apache.kafka.clients.producer.internals.Sender)
+(code retour : 0)
+
+$ bin/kafka-get-offsets.sh --bootstrap-server kafka-1:19092 --topic demo-rf1
+demo-rf1:0:1
+
+$ bin/kafka-topics.sh --bootstrap-server kafka-1:19092 --delete --topic demo-rf1
+(Résultat : la partition est listée par --under-min-isr-partitions, qui compare l'ISR à la valeur brute min.insync.replicas=2,
+ mais l'écriture acks=all est ACCEPTÉE (code retour 0, fin de partition 0 -> 1, aucun NOT_ENOUGH_REPLICAS) : le broker applique
+ un minimum effectif de min(min.insync.replicas, nombre de répliques) = 1. Le WARN REQUEST_TIMED_OUT vient de l'hôte saturé ;
+ la seconde tentative a réussi. Topic de démonstration supprimé.)

@@ -1,0 +1,152 @@
+# J/L - Arrêt complet puis remise en service sans reformatage (25/10/2026, heures UTC), poste de validation.
+# Constat : les brokers ont dépassé les 10 s accordées par docker stop (code 137 = SIGKILL) ; au redémarrage, voir « no clean shutdown file » ci-dessous.
+# J/L - Arrêt complet puis remise en service sans reformatage (25/10/2026)
+## 1. État avant l'arrêt (19:44:17 UTC)
+$ bin/kafka-get-offsets.sh --bootstrap-server kafka-1:19092 --topic mesures-brutes
+mesures-brutes:0:0
+mesures-brutes:1:3
+mesures-brutes:2:1
+mesures-brutes:3:2
+mesures-brutes:4:0
+mesures-brutes:5:0
+
+$ bin/kafka-get-offsets.sh --bootstrap-server kafka-1:19092 --topic mesures-agregees
+mesures-agregees:0:0
+mesures-agregees:1:0
+mesures-agregees:2:0
+
+$ bin/kafka-get-offsets.sh --bootstrap-server kafka-1:19092 --topic alertes-temperature
+alertes-temperature:0:0
+alertes-temperature:1:0
+alertes-temperature:2:0
+
+$ bin/kafka-get-offsets.sh --bootstrap-server kafka-1:19092 --topic etat-capteurs
+etat-capteurs:0:0
+etat-capteurs:1:0
+etat-capteurs:2:0
+
+## 2. Arrêt (19:45:34 UTC)
+$ docker compose -f docker-compose-froid.yml stop   [hôte]
+ Container froid-kafka-3 Stopping 
+ Container froid-kafka-1 Stopping 
+ Container froid-kafka-2 Stopping 
+ Container froid-kafka-3 Stopped 
+ Container froid-kafka-1 Stopped 
+ Container froid-kafka-2 Stopped 
+ Container froid-controller-2 Stopping 
+ Container froid-controller-3 Stopping 
+ Container froid-controller-1 Stopping 
+ Container froid-controller-3 Stopped 
+ Container froid-controller-2 Stopped 
+ Container froid-controller-1 Stopped 
+(arrêt en 17 s)
+
+$ docker compose -f docker-compose-froid.yml ps -a --format '{{.Name}} · {{.Status}}'
+froid-controller-1 · Exited (137) 3 seconds ago
+froid-controller-2 · Exited (143) 4 seconds ago
+froid-controller-3 · Exited (143) 5 seconds ago
+froid-kafka-1 · Exited (137) 8 seconds ago
+froid-kafka-2 · Exited (137) 8 seconds ago
+froid-kafka-3 · Exited (137) 9 seconds ago
+
+$ docker volume ls --filter name=projet-froid
+DRIVER    VOLUME NAME
+local     projet-froid_controller-1
+local     projet-froid_controller-2
+local     projet-froid_controller-3
+local     projet-froid_kafka-1
+local     projet-froid_kafka-2
+local     projet-froid_kafka-3
+
+== fin du journal de froid-kafka-1 : aucune ligne « shut down completed » (arrêt interrompu par SIGKILL) ; extrait :
+[2026-10-25 19:45:41,363] INFO [BrokerLifecycleManager id=4] Beginning controlled shutdown.
+[2026-10-25 19:45:43,887] INFO [BrokerLifecycleManager id=4] The controller has asked us to exit controlled shutdown.
+== fin du journal de froid-controller-1 : aucune ligne « shut down completed » non plus (code 137)
+
+## 3. Relance (2026-10-25T19:45:57Z)
+$ docker compose -f docker-compose-froid.yml start   [hôte]
+ Container froid-controller-3 Starting 
+ Container froid-controller-1 Starting 
+ Container froid-controller-2 Starting 
+ Container froid-controller-3 Started 
+ Container froid-controller-1 Started 
+ Container froid-controller-2 Started 
+ Container froid-controller-3 Healthy 
+ Container froid-controller-3 Healthy 
+ Container froid-controller-3 Healthy 
+ Container froid-controller-1 Healthy 
+ Container froid-controller-1 Healthy 
+ Container froid-controller-1 Healthy 
+ Container froid-controller-2 Healthy 
+ Container froid-kafka-3 Starting 
+ Container froid-controller-2 Healthy 
+ Container froid-kafka-1 Starting 
+ Container froid-controller-2 Healthy 
+ Container froid-kafka-2 Starting 
+ Container froid-kafka-3 Started 
+ Container froid-kafka-1 Started 
+ Container froid-kafka-2 Started 
+(6 services healthy en 145 s)
+$ docker compose -f docker-compose-froid.yml ps --format '{{.Name}} · {{.Status}}'
+froid-controller-1 · Up 2 minutes (healthy)
+froid-controller-2 · Up 2 minutes (healthy)
+froid-controller-3 · Up 2 minutes (healthy)
+froid-kafka-1 · Up About a minute (healthy)
+froid-kafka-2 · Up About a minute (healthy)
+froid-kafka-3 · Up About a minute (healthy)
+
+$ docker logs froid-controller-1 --since 2026-10-25T19:45:57Z 2>&1 | grep -E 'already formatted|Formatting'
+All of the log directories are already formatted.
+$ docker logs froid-controller-2 --since 2026-10-25T19:45:57Z 2>&1 | grep -E 'already formatted|Formatting'
+All of the log directories are already formatted.
+$ docker logs froid-controller-3 --since 2026-10-25T19:45:57Z 2>&1 | grep -E 'already formatted|Formatting'
+All of the log directories are already formatted.
+$ docker logs froid-kafka-1 --since 2026-10-25T19:45:57Z 2>&1 | grep -E 'already formatted|Formatting'
+All of the log directories are already formatted.
+$ docker logs froid-kafka-2 --since 2026-10-25T19:45:57Z 2>&1 | grep -E 'already formatted|Formatting'
+All of the log directories are already formatted.
+$ docker logs froid-kafka-3 --since 2026-10-25T19:45:57Z 2>&1 | grep -E 'already formatted|Formatting'
+All of the log directories are already formatted.
+
+== arrêt précédent propre ? NON : journal du broker 4 depuis la relance
+[2026-10-25 19:47:53,054] INFO Recovering 65 logs from /var/lib/kafka/data since no clean shutdown file was found (kafka.log.LogManager)
+[2026-10-25 19:47:34,728] INFO [LogLoader partition=__cluster_metadata-0, dir=/var/lib/kafka/data] Recovering unflushed segment 0. 0 recovered for __cluster_metadata-0. (org.apache.kafka.storage.internals.log.LogLoader)
+[2026-10-25 19:47:53,319] INFO [LogLoader partition=__consumer_offsets-14, dir=/var/lib/kafka/data] Recovering unflushed segment 0. 0 recovered for __consumer_offsets-14. (org.apache.kafka.storage.internals.log.LogLoader)
+[2026-10-25 19:47:53,328] INFO [LogLoader partition=__consumer_offsets-7, dir=/var/lib/kafka/data] Recovering unflushed segment 0. 0 recovered for __consumer_offsets-7. (org.apache.kafka.storage.internals.log.LogLoader)
+
+## 4. Contrôles de remise en service (19:48:33 UTC)
+$ bin/kafka-metadata-quorum.sh --bootstrap-server kafka-1:19092 describe --replication
+NodeId	DirectoryId           	LogEndOffset	Lag	LastFetchTimestamp	LastCaughtUpTimestamp	Status  	
+1     	gOtFIhrIS1CROaiIe0wMyQ	8051        	0  	1792957723578     	1792957723578        	Leader  	
+2     	qcQkn36mTYGryiSUju5IyA	8051        	0  	1792957723185     	1792957723185        	Follower	
+3     	KEjSrcxnTUSwHfG3A0pong	8051        	0  	1792957723184     	1792957723184        	Follower	
+5     	2gb-itrNBq0__aaFYkbHVg	8051        	0  	1792957723185     	1792957723185        	Observer	
+4     	p-6mvO8t6mde0d-rweTBqQ	8051        	0  	1792957723183     	1792957723183        	Observer	
+6     	IE2Qk-IcgWi7ieuLUhABGA	8051        	0  	1792957723178     	1792957723178        	Observer	
+
+$ bin/kafka-get-offsets.sh --bootstrap-server kafka-1:19092 --topic mesures-brutes
+mesures-brutes:0:0
+mesures-brutes:1:3
+mesures-brutes:2:1
+mesures-brutes:3:2
+mesures-brutes:4:0
+mesures-brutes:5:0
+
+$ bin/kafka-get-offsets.sh --bootstrap-server kafka-1:19092 --topic mesures-agregees
+mesures-agregees:0:0
+mesures-agregees:1:0
+mesures-agregees:2:0
+
+$ bin/kafka-get-offsets.sh --bootstrap-server kafka-1:19092 --topic alertes-temperature
+alertes-temperature:0:0
+alertes-temperature:1:0
+alertes-temperature:2:0
+
+$ bin/kafka-get-offsets.sh --bootstrap-server kafka-1:19092 --topic etat-capteurs
+etat-capteurs:0:0
+etat-capteurs:1:0
+etat-capteurs:2:0
+
+$ bash scripts/tableau-de-bord.sh   [hôte]
+(valeurs relevées à 19:49:30 UTC par la première version du script, dont l'affichage était erroné : quorum leader 1, 3 votants, retard max 0 ; brokers 3/3 ; 0 partition sous-répliquée ; 0 sous le min ISR ; 0 hors ligne ; 10 partitions hors leader préféré, rendues automatiquement avant 19:54 ; journaux : 14 ERROR sur froid-controller-1, 1 sur froid-controller-2, 11 sur froid-controller-3, soit les erreurs de démarrage (CONTROLLER_REGISTRATION, DESCRIBE_CLUSTER) et les NotControllerException des bascules du quorum de 19:39-19:40 encore dans la fenêtre de 15 min. Relevé avec le script corrigé : J-tableau-de-bord.txt)
+

@@ -1,0 +1,92 @@
+# J/L - Arrêt avec un délai suffisant (docker compose stop -t 120), puis relance (25/10/2026, poste de validation, heures UTC)
+# But : vérifier la recommandation de la doc 10 (§4.4) après l'arrêt du 25/10 tué à 10 s (J-arret-relance.txt).
+
+$ bin/kafka-get-offsets.sh --bootstrap-server kafka-1:19092 --topic mesures-brutes   (avant)
+mesures-brutes:0:0
+mesures-brutes:1:3
+mesures-brutes:2:1
+mesures-brutes:3:2
+mesures-brutes:4:0
+mesures-brutes:5:0
+
+$ docker compose -f docker-compose-froid.yml stop -t 120   [hôte] (20:19:13)
+ Container froid-kafka-3 Stopping 
+ Container froid-kafka-2 Stopping 
+ Container froid-kafka-1 Stopping 
+ Container froid-kafka-1 Stopped 
+ Container froid-kafka-2 Stopped 
+ Container froid-kafka-3 Stopped 
+ Container froid-controller-2 Stopping 
+ Container froid-controller-3 Stopping 
+ Container froid-controller-1 Stopping 
+ Container froid-controller-3 Stopped 
+ Container froid-controller-2 Stopped 
+ Container froid-controller-1 Stopped 
+(arrêt en 27 s)
+
+$ docker compose -f docker-compose-froid.yml ps -a --format '{{.Name}} · {{.Status}}'
+froid-controller-1 · Exited (143) 4 seconds ago
+froid-controller-2 · Exited (143) 8 seconds ago
+froid-controller-3 · Exited (143) 8 seconds ago
+froid-kafka-1 · Exited (143) 16 seconds ago
+froid-kafka-2 · Exited (143) 15 seconds ago
+froid-kafka-3 · Exited (143) 14 seconds ago
+
+== fin du journal de froid-kafka-1 :
+[2026-10-25 20:19:25,281] INFO [BrokerServer id=4] shut down completed (kafka.server.BrokerServer)
+== fin du journal de froid-kafka-2 :
+[2026-10-25 20:19:26,262] INFO [BrokerServer id=5] shut down completed (kafka.server.BrokerServer)
+== fin du journal de froid-kafka-3 :
+[2026-10-25 20:19:27,424] INFO [BrokerServer id=6] shut down completed (kafka.server.BrokerServer)
+
+$ docker compose -f docker-compose-froid.yml start   [hôte] (2026-10-25T20:19:47Z)
+ Container froid-controller-3 Starting 
+ Container froid-controller-1 Starting 
+ Container froid-controller-2 Starting 
+ Container froid-controller-3 Started 
+ Container froid-controller-1 Started 
+ Container froid-controller-2 Started 
+ Container froid-controller-1 Healthy 
+ Container froid-controller-1 Healthy 
+ Container froid-controller-1 Healthy 
+ Container froid-controller-3 Healthy 
+ Container froid-controller-3 Healthy 
+ Container froid-controller-3 Healthy 
+ Container froid-controller-2 Healthy 
+ Container froid-kafka-3 Starting 
+ Container froid-controller-2 Healthy 
+ Container froid-kafka-1 Starting 
+ Container froid-controller-2 Healthy 
+ Container froid-kafka-2 Starting 
+ Container froid-kafka-3 Started 
+ Container froid-kafka-1 Started 
+ Container froid-kafka-2 Started 
+(6 services healthy en 178 s)
+
+$ docker logs froid-controller-1 --since 2026-10-25T20:19:47Z 2>&1 | grep 'already formatted'
+All of the log directories are already formatted.
+$ docker logs froid-controller-2 --since 2026-10-25T20:19:47Z 2>&1 | grep 'already formatted'
+All of the log directories are already formatted.
+$ docker logs froid-controller-3 --since 2026-10-25T20:19:47Z 2>&1 | grep 'already formatted'
+All of the log directories are already formatted.
+$ docker logs froid-kafka-1 --since 2026-10-25T20:19:47Z 2>&1 | grep 'already formatted'
+All of the log directories are already formatted.
+$ docker logs froid-kafka-2 --since 2026-10-25T20:19:47Z 2>&1 | grep 'already formatted'
+All of the log directories are already formatted.
+$ docker logs froid-kafka-3 --since 2026-10-25T20:19:47Z 2>&1 | grep 'already formatted'
+All of the log directories are already formatted.
+
+$ docker logs froid-kafka-1 --since 2026-10-25T20:19:47Z 2>&1 | grep 'clean shutdown file'
+[2026-10-25 20:22:11,276] INFO Skipping recovery of 65 logs from /var/lib/kafka/data since clean shutdown file was found
+$ docker logs froid-kafka-2 --since 2026-10-25T20:19:47Z 2>&1 | grep 'clean shutdown file'
+[2026-10-25 20:22:09,396] INFO Skipping recovery of 65 logs from /var/lib/kafka/data since clean shutdown file was found
+$ docker logs froid-kafka-3 --since 2026-10-25T20:19:47Z 2>&1 | grep 'clean shutdown file'
+[2026-10-25 20:22:00,513] INFO Skipping recovery of 65 logs from /var/lib/kafka/data since clean shutdown file was found
+
+$ bin/kafka-get-offsets.sh --bootstrap-server kafka-1:19092 --topic mesures-brutes   (après)
+mesures-brutes:0:0
+mesures-brutes:1:3
+mesures-brutes:2:1
+mesures-brutes:3:2
+mesures-brutes:4:0
+mesures-brutes:5:0

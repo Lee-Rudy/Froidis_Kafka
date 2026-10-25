@@ -1,0 +1,4 @@
+# Scripts shell et JSON en LF, même extraits sous Windows (core.autocrlf=true) :
+# un script .sh en CRLF échoue sous bash (« $'\r': command not found »).
+*.sh   text eol=lf
+*.json text eol=lf

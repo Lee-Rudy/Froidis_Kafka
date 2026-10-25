@@ -1,0 +1,152 @@
+# H3 - Rétention delete : démonstration sur un topic dédié (25/10/2026, heures UTC)
+# Poste de validation : cluster reconstruit à partir du dépôt (mêmes identifiants .env), Docker 29.8.2.
+# « envoyé à » = lancement de la commande ; le producteur console met quelques secondes à démarrer :
+# les heures réelles d'écriture sont les CreateTime (19:03:43 et 19:04:54) et les lignes du journal du broker 4.
+# Retiré : des erreurs du client Docker côté Windows (mémoire de l'hôte saturée) au lancement du script, sans effet sur Kafka.
+# Contrôle de rétention du broker 4 visé : 19:05:14 (LogManager démarré à 18:54:44, premier contrôle 30 s après, puis toutes les 300 s).
+
+## 1. Topic de démonstration : 1 partition, répliques 4,5,6 (leader 4), rétention 60 s, segment fermé après 20 s (19:02:47)
+$ bin/kafka-topics.sh --bootstrap-server kafka-1:19092 --create --topic demo-retention --replica-assignment 4:5:6 --config retention.ms=60000 --config segment.ms=20000 --config min.insync.replicas=2
+Created topic demo-retention.
+
+$ bin/kafka-topics.sh --bootstrap-server kafka-1:19092 --describe --topic demo-retention
+Topic: demo-retention	TopicId: RFeTJvtaSwe6Kpt_Cr3J1A	PartitionCount: 1	ReplicationFactor: 3	Configs: min.insync.replicas=2,retention.ms=60000,unclean.leader.election.enable=false,segment.ms=20000
+	Topic: demo-retention	Partition: 0	Leader: 4	Replicas: 4,5,6	Isr: 4,5,6	Elr: 	LastKnownElr:
+
+## 2. Cinq valeurs envoyées à 19:03:35 (lot 1, écrit à 19:03:43)
+$ bin/kafka-console-producer.sh --bootstrap-server kafka-1:19092 --topic demo-retention --reader-property parse.key=true --reader-property key.separator=:
+CAP-001:4.2
+CAP-002:5.1
+CAP-001:8.7
+CAP-003:3.8
+CAP-001:9.0
+
+$ bin/kafka-get-offsets.sh --bootstrap-server kafka-1:19092 --topic demo-retention --time earliest
+demo-retention:0:0
+
+$ bin/kafka-get-offsets.sh --bootstrap-server kafka-1:19092 --topic demo-retention --time latest
+demo-retention:0:5
+
+$ ls -l /var/lib/kafka/data/demo-retention-0
+total 12
+-rw-r--r-- 1 appuser appuser 10485760 Oct 25 19:02 00000000000000000000.index
+-rw-r--r-- 1 appuser appuser      146 Oct 25 19:03 00000000000000000000.log
+-rw-r--r-- 1 appuser appuser 10485756 Oct 25 19:02 00000000000000000000.timeindex
+-rw-r--r-- 1 appuser appuser        8 Oct 25 19:02 leader-epoch-checkpoint
+-rw-r--r-- 1 appuser appuser       43 Oct 25 19:02 partition.metadata
+
+## 3. Plus de 20 s après : CAP-001:9.2 envoyée à 19:04:41 (écrite à 19:04:54) -> fermeture du segment 0, ouverture du segment 5
+CAP-001:9.2
+
+$ ls -l /var/lib/kafka/data/demo-retention-0
+total 24
+-rw-r--r-- 1 appuser appuser        0 Oct 25 19:04 00000000000000000000.index
+-rw-r--r-- 1 appuser appuser      146 Oct 25 19:03 00000000000000000000.log
+-rw-r--r-- 1 appuser appuser       12 Oct 25 19:04 00000000000000000000.timeindex
+-rw-r--r-- 1 appuser appuser 10485760 Oct 25 19:04 00000000000000000005.index
+-rw-r--r-- 1 appuser appuser       78 Oct 25 19:04 00000000000000000005.log
+-rw-r--r-- 1 appuser appuser       56 Oct 25 19:04 00000000000000000005.snapshot
+-rw-r--r-- 1 appuser appuser 10485756 Oct 25 19:04 00000000000000000005.timeindex
+-rw-r--r-- 1 appuser appuser        8 Oct 25 19:02 leader-epoch-checkpoint
+-rw-r--r-- 1 appuser appuser       43 Oct 25 19:02 partition.metadata
+
+$ bin/kafka-console-consumer.sh --bootstrap-server kafka-1:19092 --topic demo-retention --from-beginning --formatter-property print.key=true --formatter-property print.offset=true --formatter-property print.timestamp=true --timeout-ms 8000
+CreateTime:1792955023494	Offset:0	CAP-001	4.2
+CreateTime:1792955023537	Offset:1	CAP-002	5.1
+CreateTime:1792955023537	Offset:2	CAP-001	8.7
+CreateTime:1792955023537	Offset:3	CAP-003	3.8
+CreateTime:1792955023537	Offset:4	CAP-001	9.0
+CreateTime:1792955094750	Offset:5	CAP-001	9.2
+[2026-10-25 19:05:19,452] ERROR Error processing message, terminating consumer process:  (org.apache.kafka.tools.consumer.ConsoleConsumer)
+org.apache.kafka.common.errors.TimeoutException
+Processed a total of 6 messages
+(CreateTime 1792955023537 = 19:03:43.537 ; 1792955094750 = 19:04:54.750. La TimeoutException est la fin normale de --timeout-ms.)
+
+## 4. Contrôle de rétention du broker 4 (journal /opt/kafka/logs/server.log)
+$ grep demo-retention-0 /opt/kafka/logs/server.log
+[2026-10-25 19:02:47,733] INFO Created log for partition demo-retention-0 in /var/lib/kafka/data/demo-retention-0 with properties {min.insync.replicas=2, retention.ms=60000, segment.ms=20000} (kafka.log.LogManager)
+[2026-10-25 19:04:55,047] INFO [LocalLog partition=demo-retention-0, dir=/var/lib/kafka/data/demo-retention-0] Rolled new log segment at offset 5 in 7 ms. (org.apache.kafka.storage.internals.log.LocalLog)
+[2026-10-25 19:05:14,300] INFO [UnifiedLog partition=demo-retention-0, dir=/var/lib/kafka/data] Incremented log start offset to 5 due to segment deletion (org.apache.kafka.storage.internals.log.UnifiedLog)
+[2026-10-25 19:05:14,317] INFO [UnifiedLog partition=demo-retention-0, dir=/var/lib/kafka/data] Deleting segment LogSegment(baseOffset=0, size=146, lastModifiedTime=1792955023755, largestRecordTimestamp=1792955023537) due to log retention time 60000ms breach based on the largest record timestamp in the segment (org.apache.kafka.storage.internals.log.UnifiedLog)
+[2026-10-25 19:06:14,289] INFO [LocalLog partition=demo-retention-0, dir=/var/lib/kafka/data/demo-retention-0] Deleting segment files LogSegment(baseOffset=0, size=146, lastModifiedTime=1792955023755, largestRecordTimestamp=1792955023537) (org.apache.kafka.storage.internals.log.LocalLog)
+(segment 0 : dernier message à 19:03:43, âgé de 91 s au contrôle -> supprimé ; segment 5 : 9.2 à 19:04:54, âgée de 20 s -> conservé)
+
+$ ls -l /var/lib/kafka/data/demo-retention-0   (19:05:22)
+total 24
+-rw-r--r-- 1 appuser appuser        0 Oct 25 19:04 00000000000000000000.index.deleted
+-rw-r--r-- 1 appuser appuser      146 Oct 25 19:03 00000000000000000000.log.deleted
+-rw-r--r-- 1 appuser appuser       12 Oct 25 19:04 00000000000000000000.timeindex.deleted
+-rw-r--r-- 1 appuser appuser 10485760 Oct 25 19:04 00000000000000000005.index
+-rw-r--r-- 1 appuser appuser       78 Oct 25 19:04 00000000000000000005.log
+-rw-r--r-- 1 appuser appuser       56 Oct 25 19:04 00000000000000000005.snapshot
+-rw-r--r-- 1 appuser appuser 10485756 Oct 25 19:04 00000000000000000005.timeindex
+-rw-r--r-- 1 appuser appuser        8 Oct 25 19:05 leader-epoch-checkpoint
+-rw-r--r-- 1 appuser appuser       43 Oct 25 19:02 partition.metadata
+
+$ bin/kafka-get-offsets.sh --bootstrap-server kafka-1:19092 --topic demo-retention --time earliest
+demo-retention:0:5
+
+$ bin/kafka-get-offsets.sh --bootstrap-server kafka-1:19092 --topic demo-retention --time latest
+demo-retention:0:6
+
+$ bin/kafka-console-consumer.sh --bootstrap-server kafka-1:19092 --topic demo-retention --from-beginning --formatter-property print.key=true --formatter-property print.offset=true --timeout-ms 8000
+Offset:5	CAP-001	9.2
+[2026-10-25 19:06:14,073] ERROR Error processing message, terminating consumer process:  (org.apache.kafka.tools.consumer.ConsoleConsumer)
+org.apache.kafka.common.errors.TimeoutException
+Processed a total of 1 messages
+
+## 5. Une minute plus tard (19:07:21) : les fichiers .deleted ont disparu (log.segment.delete.delay.ms = 60000)
+$ ls -l /var/lib/kafka/data/demo-retention-0
+total 16
+-rw-r--r-- 1 appuser appuser 10485760 Oct 25 19:04 00000000000000000005.index
+-rw-r--r-- 1 appuser appuser       78 Oct 25 19:04 00000000000000000005.log
+-rw-r--r-- 1 appuser appuser       56 Oct 25 19:04 00000000000000000005.snapshot
+-rw-r--r-- 1 appuser appuser 10485756 Oct 25 19:04 00000000000000000005.timeindex
+-rw-r--r-- 1 appuser appuser        8 Oct 25 19:05 leader-epoch-checkpoint
+-rw-r--r-- 1 appuser appuser       43 Oct 25 19:02 partition.metadata
+
+## 6. Une nouvelle valeur prend l'offset suivant : rien n'est renuméroté (envoyée à 19:07:25)
+CAP-002:5.3
+
+$ bin/kafka-console-consumer.sh --bootstrap-server kafka-1:19092 --topic demo-retention --from-beginning --formatter-property print.key=true --formatter-property print.offset=true --timeout-ms 8000
+Offset:5	CAP-001	9.2
+Offset:6	CAP-002	5.3
+[2026-10-25 19:07:56,481] ERROR Error processing message, terminating consumer process:  (org.apache.kafka.tools.consumer.ConsoleConsumer)
+org.apache.kafka.common.errors.TimeoutException
+Processed a total of 2 messages
+
+## 7. Les répliques suiveuses (brokers 5 et 6) commencent elles aussi à l'offset 5
+$ docker exec froid-kafka-2 ls /var/lib/kafka/data/demo-retention-0   [hôte]
+00000000000000000005.index
+00000000000000000005.log
+00000000000000000005.snapshot
+00000000000000000005.timeindex
+00000000000000000006.index
+00000000000000000006.log
+00000000000000000006.snapshot
+00000000000000000006.timeindex
+leader-epoch-checkpoint
+partition.metadata
+
+$ docker exec froid-kafka-3 ls /var/lib/kafka/data/demo-retention-0   [hôte]
+00000000000000000005.index
+00000000000000000005.log
+00000000000000000005.snapshot
+00000000000000000005.timeindex
+00000000000000000006.index
+00000000000000000006.log
+00000000000000000006.snapshot
+00000000000000000006.timeindex
+leader-epoch-checkpoint
+partition.metadata
+(5.3 est arrivée plus de 20 s après 9.2 : elle a ouvert le segment 6, « Rolled new log segment at offset 6 » à 19:07:34.)
+
+## 8. Retrait du topic de démonstration (19:08:03)
+$ bin/kafka-topics.sh --bootstrap-server kafka-1:19092 --delete --topic demo-retention
+
+$ bin/kafka-topics.sh --bootstrap-server kafka-1:19092 --list
+__consumer_offsets
+alertes-temperature
+etat-capteurs
+mesures-agregees
+mesures-brutes

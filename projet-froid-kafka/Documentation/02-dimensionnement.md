@@ -38,7 +38,7 @@ Le poste ne peut pas stocker 7 jours de trafic, et le TP ne l'exige pas : on uti
 - **Compression** (`compression.type` côté producteur : lz4, zstd). Des JSON répétitifs se compressent souvent de 3 à 5 fois, ce qui fait baisser le besoin réel.
 - **Format des lots** : en-têtes de lot et d'enregistrement, horodatages. Mesure réelle de la phase H (`preuves/H1-segments.txt`) : la clé fait 7 o et la valeur JSON 86 o, soit 93 o utiles. Sur disque, un lot de 3 mesures occupe **367 o (≈ 122 o/mesure)** et un lot d'une seule mesure **163 o**. L'hypothèse de 200 o/message est donc prudente pour ce format, mais le surcoût par message dépend fortement du regroupement en lots.
 - **Index** (`.index`, `.timeindex`) : préalloués à 10 Mo par segment actif (observé en phase H), petits une fois le segment fermé.
-- **Segments** : la rétention supprime des segments entiers. Le segment actif n'est jamais supprimé, et le volume réel dépasse donc légèrement 7 jours (jusqu'à `segment.bytes` = 1 Go ou `segment.ms` = 7 jours de plus par partition).
+- **Segments** : la rétention supprime des segments entiers. Le segment actif n'est supprimé que si tout son contenu a expiré, ce qui n'arrive pas sous un flux continu (démonstration : `10`, H3), et le volume réel dépasse donc légèrement 7 jours (jusqu'à `segment.bytes` = 1 Go ou `segment.ms` = 7 jours de plus par partition).
 - **Fichiers internes** : `__consumer_offsets` (50 partitions), journal des métadonnées KRaft côté contrôleurs, checkpoints, snapshots.
 - **Marge d'exploitation** : réaffectation de partitions (copie temporaire), croissance du parc de capteurs, rattrapage après panne, seuil d'alerte disque (ne jamais dépasser ≈ 70-80 % d'occupation).
 

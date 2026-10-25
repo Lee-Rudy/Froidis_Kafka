@@ -28,6 +28,7 @@ TP fil rouge MCCI (BC05, chapitre 2) : « Déployer un cluster Kafka de A à Z :
 | 7 | [07-kafka-flink-et-limites.md](07-kafka-flink-et-limites.md) | Simulation des sorties, Kafka face à Flink, avantages, limites, risques | K, livrable |
 | 8 | [08-recette.md](08-recette.md) | Les 8 critères de recette, statut et preuves | L |
 | 9 | [09-questions-oral.md](09-questions-oral.md) | Réponses aux 10 questions de soutenance | oral |
+| 10 | [10-criteres-7-8-guide-H-I-J.md](10-criteres-7-8-guide-H-I-J.md) | Critères 7 et 8 : guide pas à pas des phases H, I et J, rétention démontrée, tableau de bord exécutable, maintenance, sécurité, remise en service (PDF : `pdf/`) | H, I, J, L |
 
 ## Annexes (projet technique)
 
@@ -35,4 +36,5 @@ TP fil rouge MCCI (BC05, chapitre 2) : « Déployer un cluster Kafka de A à Z :
 - [`../Command.md`](../Command.md) : journal commenté de toutes les commandes, problèmes rencontrés.
 - [`../preuves/`](../preuves/) : sorties réelles, un fichier par étape.
 - [`../json/`](../json/) : fichiers de la phase I.
+- [`../scripts/tableau-de-bord.sh`](../scripts/tableau-de-bord.sh) : tableau de bord de supervision en ligne de commande (phase J, lecture seule).
 - [`../config/`](../config/), [`../docker-compose-froid.yml`](../docker-compose-froid.yml), [`../.env`](../.env).

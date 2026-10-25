@@ -1,0 +1,146 @@
+# Poste de validation : cluster reconstruit à partir du dépôt (mêmes identifiants .env), Docker 29.8.2. Heures en UTC.
+# Topic de démonstration demo-migration (jamais un topic métier), supprimé à la fin.
+# I (complément) - réaffectation limitée en débit (--throttle), --verify, élection, retour arrière (25/10/2026)
+## 1. Topic de démonstration à une réplique, rempli de 20 000 mesures (≈ 4 Mo) (19:26:27 UTC)
+$ bin/kafka-topics.sh --bootstrap-server kafka-1:19092 --create --topic demo-migration --partitions 3 --replication-factor 1
+Created topic demo-migration.
+
+$ seq 1 20000 | awk '{ printf "CAP-%03d:{...200 o...}\n", $1 % 500 + 1 }' | bin/kafka-console-producer.sh --bootstrap-server kafka-1:19092 --topic demo-migration ...
+
+$ bin/kafka-get-offsets.sh --bootstrap-server kafka-1:19092 --topic demo-migration
+demo-migration:0:6600
+demo-migration:1:6120
+demo-migration:2:7280
+
+$ bin/kafka-topics.sh --bootstrap-server kafka-1:19092 --describe --topic demo-migration
+Topic: demo-migration	TopicId: kGOmCVsvTu6Tvrma5xuSdQ	PartitionCount: 3	ReplicationFactor: 1	Configs: min.insync.replicas=2,unclean.leader.election.enable=false
+	Topic: demo-migration	Partition: 0	Leader: 6	Replicas: 6	Isr: 6	Elr: 	LastKnownElr: 
+	Topic: demo-migration	Partition: 1	Leader: 4	Replicas: 4	Isr: 4	Elr: 	LastKnownElr: 
+	Topic: demo-migration	Partition: 2	Leader: 5	Replicas: 5	Isr: 5	Elr: 	LastKnownElr: 
+
+## 2. --generate : affectation actuelle (plan de retour arrière) et proposition
+$ bin/kafka-reassign-partitions.sh --bootstrap-server kafka-1:19092 --topics-to-move-json-file /tmp/topics-demo.json --broker-list 4,5,6 --generate
+Current partition replica assignment
+{"version":1,"partitions":[{"topic":"demo-migration","partition":0,"replicas":[6],"log_dirs":["/var/lib/kafka/data"]},{"topic":"demo-migration","partition":1,"replicas":[4],"log_dirs":["/var/lib/kafka/data"]},{"topic":"demo-migration","partition":2,"replicas":[5],"log_dirs":["/var/lib/kafka/data"]}]}
+
+Proposed partition reassignment configuration
+{"version":1,"partitions":[{"topic":"demo-migration","partition":0,"replicas":[4],"log_dirs":["any"]},{"topic":"demo-migration","partition":1,"replicas":[5],"log_dirs":["any"]},{"topic":"demo-migration","partition":2,"replicas":[6],"log_dirs":["any"]}]}
+
+{"version":1,"partitions":[{"topic":"demo-migration","partition":0,"replicas":[6],"log_dirs":["/var/lib/kafka/data"]},{"topic":"demo-migration","partition":1,"replicas":[4],"log_dirs":["/var/lib/kafka/data"]},{"topic":"demo-migration","partition":2,"replicas":[5],"log_dirs":["/var/lib/kafka/data"]}]}
+(ligne ci-dessus : bloc « Current » enregistré dans /tmp/retour-demo.json, le plan de retour arrière)
+
+## 3. Plan à 3 répliques, exécuté avec un quota de 1 Mio/s (19:27:20 UTC)
+$ bin/kafka-reassign-partitions.sh --bootstrap-server kafka-1:19092 --reassignment-json-file /tmp/plan-demo.json --execute --throttle 1048576
+Current partition replica assignment
+
+{"version":1,"partitions":[{"topic":"demo-migration","partition":0,"replicas":[6],"log_dirs":["/var/lib/kafka/data"]},{"topic":"demo-migration","partition":1,"replicas":[4],"log_dirs":["/var/lib/kafka/data"]},{"topic":"demo-migration","partition":2,"replicas":[5],"log_dirs":["/var/lib/kafka/data"]}]}
+
+Save this to use as the --reassignment-json-file option during rollback
+Warning: You must run --verify periodically, until the reassignment completes, to ensure the throttle is removed.
+The inter-broker throttle limit was set to 1048576 B/s
+Successfully started partition reassignments for demo-migration-0,demo-migration-1,demo-migration-2
+
+## 4. Pendant la copie : quotas posés et réaffectation en cours (19:27:29 UTC)
+$ bin/kafka-topics.sh --bootstrap-server kafka-1:19092 --describe --topic demo-migration
+Topic: demo-migration	TopicId: kGOmCVsvTu6Tvrma5xuSdQ	PartitionCount: 3	ReplicationFactor: 3	Configs: leader.replication.throttled.replicas=0:6,1:4,2:5,min.insync.replicas=2,follower.replication.throttled.replicas=0:4,0:5,1:5,1:6,2:4,2:6,unclean.leader.election.enable=false
+	Topic: demo-migration	Partition: 0	Leader: 6	Replicas: 4,5,6	Isr: 4,5,6	Elr: 	LastKnownElr: 
+	Topic: demo-migration	Partition: 1	Leader: 4	Replicas: 5,6,4	Isr: 4,5,6	Elr: 	LastKnownElr: 
+	Topic: demo-migration	Partition: 2	Leader: 5	Replicas: 6,4,5	Isr: 4,5,6	Elr: 	LastKnownElr: 
+
+$ bin/kafka-configs.sh --bootstrap-server kafka-1:19092 --describe --entity-type brokers --entity-name 4
+Dynamic configs for broker 4 are:
+  follower.replication.throttled.rate=1048576 sensitive=false synonyms={DYNAMIC_BROKER_CONFIG:follower.replication.throttled.rate=1048576}
+  leader.replication.throttled.rate=1048576 sensitive=false synonyms={DYNAMIC_BROKER_CONFIG:leader.replication.throttled.rate=1048576}
+
+$ bin/kafka-configs.sh --bootstrap-server kafka-1:19092 --describe --entity-type topics --entity-name demo-migration
+Dynamic configs for topic demo-migration are:
+  follower.replication.throttled.replicas=0:4,0:5,1:5,1:6,2:4,2:6 sensitive=false synonyms={DYNAMIC_TOPIC_CONFIG:follower.replication.throttled.replicas=0:4,0:5,1:5,1:6,2:4,2:6}
+  leader.replication.throttled.replicas=0:6,1:4,2:5 sensitive=false synonyms={DYNAMIC_TOPIC_CONFIG:leader.replication.throttled.replicas=0:6,1:4,2:5}
+
+--verify à 19:28:13 UTC :
+Reassignment of partition demo-migration-0 is completed.
+Reassignment of partition demo-migration-1 is completed.
+Reassignment of partition demo-migration-2 is completed.
+Clearing broker-level throttles on brokers 4,5,6
+Clearing topic-level throttles on topic demo-migration
+
+$ bin/kafka-configs.sh --bootstrap-server kafka-1:19092 --describe --entity-type brokers --entity-name 4
+Dynamic configs for broker 4 are:
+
+$ bin/kafka-topics.sh --bootstrap-server kafka-1:19092 --describe --topic demo-migration
+Topic: demo-migration	TopicId: kGOmCVsvTu6Tvrma5xuSdQ	PartitionCount: 3	ReplicationFactor: 3	Configs: min.insync.replicas=2,unclean.leader.election.enable=false
+	Topic: demo-migration	Partition: 0	Leader: 4	Replicas: 4,5,6	Isr: 4,5,6	Elr: 	LastKnownElr: 
+	Topic: demo-migration	Partition: 1	Leader: 5	Replicas: 5,6,4	Isr: 4,5,6	Elr: 	LastKnownElr: 
+	Topic: demo-migration	Partition: 2	Leader: 6	Replicas: 6,4,5	Isr: 4,5,6	Elr: 	LastKnownElr: 
+
+## 5. Élection des leaders préférés, limitée à ce topic (19:28:46 UTC)
+$ bin/kafka-leader-election.sh --bootstrap-server kafka-1:19092 --election-type PREFERRED --path-to-json-file /tmp/election-demo.json
+Valid replica already elected for partitions demo-migration-2, demo-migration-1, demo-migration-0
+
+$ bin/kafka-topics.sh --bootstrap-server kafka-1:19092 --describe --topic demo-migration
+Topic: demo-migration	TopicId: kGOmCVsvTu6Tvrma5xuSdQ	PartitionCount: 3	ReplicationFactor: 3	Configs: min.insync.replicas=2,unclean.leader.election.enable=false
+	Topic: demo-migration	Partition: 0	Leader: 4	Replicas: 4,5,6	Isr: 4,5,6	Elr: 	LastKnownElr: 
+	Topic: demo-migration	Partition: 1	Leader: 5	Replicas: 5,6,4	Isr: 4,5,6	Elr: 	LastKnownElr: 
+	Topic: demo-migration	Partition: 2	Leader: 6	Replicas: 6,4,5	Isr: 4,5,6	Elr: 	LastKnownElr: 
+
+## 6. Retour arrière avec le plan sauvegardé (19:29:12 UTC)
+$ bin/kafka-reassign-partitions.sh --bootstrap-server kafka-1:19092 --reassignment-json-file /tmp/retour-demo.json --execute
+Current partition replica assignment
+
+{"version":1,"partitions":[{"topic":"demo-migration","partition":0,"replicas":[4,5,6],"log_dirs":["/var/lib/kafka/data","/var/lib/kafka/data","/var/lib/kafka/data"]},{"topic":"demo-migration","partition":1,"replicas":[5,6,4],"log_dirs":["/var/lib/kafka/data","/var/lib/kafka/data","/var/lib/kafka/data"]},{"topic":"demo-migration","partition":2,"replicas":[6,4,5],"log_dirs":["/var/lib/kafka/data","/var/lib/kafka/data","/var/lib/kafka/data"]}]}
+
+Save this to use as the --reassignment-json-file option during rollback
+Successfully started partition reassignments for demo-migration-0,demo-migration-1,demo-migration-2
+Successfully started moving log directory to /var/lib/kafka/data for replica demo-migration-1 with broker 4 
+Successfully started moving log directory to /var/lib/kafka/data for replica demo-migration-2 with broker 5 
+Successfully started moving log directory to /var/lib/kafka/data for replica demo-migration-0 with broker 6 
+
+$ bin/kafka-reassign-partitions.sh --bootstrap-server kafka-1:19092 --reassignment-json-file /tmp/retour-demo.json --verify
+Status of partition reassignment:
+Reassignment of partition demo-migration-0 is completed.
+Reassignment of partition demo-migration-1 is completed.
+Reassignment of partition demo-migration-2 is completed.
+Reassignment of replica demo-migration-1-4 completed successfully.
+Reassignment of replica demo-migration-2-5 completed successfully.
+Reassignment of replica demo-migration-0-6 completed successfully.
+Clearing broker-level throttles on brokers 4,5,6
+Clearing topic-level throttles on topic demo-migration
+
+$ bin/kafka-topics.sh --bootstrap-server kafka-1:19092 --describe --topic demo-migration
+Topic: demo-migration	TopicId: kGOmCVsvTu6Tvrma5xuSdQ	PartitionCount: 3	ReplicationFactor: 1	Configs: min.insync.replicas=2,unclean.leader.election.enable=false
+	Topic: demo-migration	Partition: 0	Leader: 6	Replicas: 6	Isr: 6	Elr: 4,5	LastKnownElr: 
+	Topic: demo-migration	Partition: 1	Leader: 4	Replicas: 4	Isr: 4	Elr: 5,6	LastKnownElr: 
+	Topic: demo-migration	Partition: 2	Leader: 5	Replicas: 5	Isr: 5	Elr: 4,6	LastKnownElr: 
+
+$ bin/kafka-get-offsets.sh --bootstrap-server kafka-1:19092 --topic demo-migration
+demo-migration:0:6600
+demo-migration:1:6120
+demo-migration:2:7280
+
+## 7. Retrait du topic de démonstration (19:29:49 UTC)
+$ bin/kafka-topics.sh --bootstrap-server kafka-1:19092 --delete --topic demo-migration
+
+## Annexe - Qui a rendu les leaders préférés avant l'élection de 19:28:46 ? Journal de métadonnées KRaft (froid-controller-1)
+$ bin/kafka-dump-log.sh --cluster-metadata-decoder --files /var/lib/kafka/data/__cluster_metadata-0/<segment>.log | grep kGOmCVsvTu6Tvrma5xuSdQ
+(sortie filtrée : heure du lot, puis les champs partitionId, replicas, isr, addingReplicas, removingReplicas, leader de chaque PartitionRecord / PartitionChangeRecord)
+19:26:39 "partitionId":0 "replicas":[6] "isr":[6] "removingReplicas":[] "addingReplicas":[] "leader":6
+19:26:39 "partitionId":1 "replicas":[4] "isr":[4] "removingReplicas":[] "addingReplicas":[] "leader":4
+19:26:39 "partitionId":2 "replicas":[5] "isr":[5] "removingReplicas":[] "addingReplicas":[] "leader":5
+19:27:28 "partitionId":0 "replicas":[4,5,6] "addingReplicas":[4,5]
+19:27:28 "partitionId":1 "replicas":[5,6,4] "addingReplicas":[5,6]
+19:27:28 "partitionId":2 "replicas":[6,4,5] "addingReplicas":[4,6]
+19:27:28 "partitionId":1 "isr":[4,6]
+19:27:28 "partitionId":0 "isr":[4,6]
+19:27:29 "partitionId":1 "isr":[4,5,6] "addingReplicas":[]
+19:27:30 "partitionId":0 "isr":[4,5,6] "addingReplicas":[]
+19:27:31 "partitionId":2 "isr":[5,6]
+19:27:31 "partitionId":2 "isr":[4,5,6] "addingReplicas":[]
+19:28:31 "partitionId":1 "leader":5
+19:28:31 "partitionId":0 "leader":4
+19:28:31 "partitionId":2 "leader":6
+19:29:20 "partitionId":0 "isr":[6] "leader":6 "replicas":[6]
+19:29:20 "partitionId":1 "isr":[4] "leader":4 "replicas":[4]
+19:29:20 "partitionId":2 "isr":[5] "leader":5 "replicas":[5]
+(19:27:28 : --execute ; 19:27:29-31 : copie terminée, les répliques ajoutées entrent dans l'ISR ; 19:28:31 : changement de leader SEUL,
+ sans changement de répliques, une minute après la fin de la copie : c'est le rééquilibrage automatique des leaders préférés
+ (auto.leader.rebalance.enable=true, contrôle toutes les 300 s). D'où « Valid replica already elected » à 19:28:46. 19:29:20 : retour arrière.)

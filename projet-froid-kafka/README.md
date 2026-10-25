@@ -52,6 +52,8 @@ Au redémarrage, chaque nœud affiche `All of the log directories are already fo
 | `preuves/` | Sorties réelles des commandes, un fichier par étape (ex. `C6-quorum.txt`, `G3-deux-brokers-arretes.txt`) |
 | `Command.md` | Journal de toutes les commandes lancées, commentées, avec les problèmes rencontrés |
 | `Documentation/` | Dossier d'architecture (lire `00-index.md` en premier) |
+| `Documentation/pdf/` | PDF du document 10 (critères 7 et 8) et son script de génération `generer-pdf.sh` (pandoc + Chrome) |
+| `scripts/tableau-de-bord.sh` | Tableau de bord de supervision (phase J), en lecture seule : quorum, brokers, sous-réplication, min ISR, partitions hors ligne, leaders préférés, LAG, disques, journaux. `bash scripts/tableau-de-bord.sh` depuis l'hôte |
 
 ## Identifiants du cluster
 

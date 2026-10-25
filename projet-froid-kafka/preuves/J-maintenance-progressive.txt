@@ -1,0 +1,81 @@
+# Poste de validation : cluster reconstruit à partir du dépôt (mêmes identifiants .env), Docker 29.8.2. Heures en UTC.
+# Tableau de bord : la première version de scripts/tableau-de-bord.sh ajoutait à chaque indicateur sain un second verdict
+# erroné (bug de code retour, corrigé ensuite) ; ses sorties sont remplacées ci-dessous par les valeurs qu'il a relevées.
+# Le tableau de bord corrigé est dans J-tableau-de-bord.txt.
+# J - Maintenance progressive d'un broker (broker 6, conteneur froid-kafka-3), selon la procédure 4.2 (25/10/2026)
+## 1. Pré-contrôles (19:30:00 UTC)
+$ bash scripts/tableau-de-bord.sh   [hôte]
+(valeurs relevées à 19:30:01 : quorum leader 3, 3 votants, retard max 1 ; brokers 3/3 ; 0 partition sous-répliquée ; 0 sous le min ISR et 0 au min ISR ; 0 hors ligne ; leaders préférés sur toutes les partitions métier ; aucun groupe en retard ; disques à 2 % ; 3 répertoires de journaux en ligne ; journaux : 0 ERROR, sauf 4 sur froid-controller-3, des NotControllerException transitoires lors de la bascule du quorum à 19:28:41)
+
+$ bin/kafka-topics.sh --bootstrap-server kafka-1:19092 --describe --topic mesures-brutes
+Topic: mesures-brutes	TopicId: cTtYAV4hSCCG7s8LiEraWQ	PartitionCount: 6	ReplicationFactor: 3	Configs: min.insync.replicas=2,cleanup.policy=delete,retention.ms=604800000,unclean.leader.election.enable=false
+	Topic: mesures-brutes	Partition: 0	Leader: 6	Replicas: 6,4,5	Isr: 6,4,5	Elr: 	LastKnownElr: 
+	Topic: mesures-brutes	Partition: 1	Leader: 4	Replicas: 4,5,6	Isr: 4,5,6	Elr: 	LastKnownElr: 
+	Topic: mesures-brutes	Partition: 2	Leader: 5	Replicas: 5,6,4	Isr: 5,6,4	Elr: 	LastKnownElr: 
+	Topic: mesures-brutes	Partition: 3	Leader: 4	Replicas: 4,6,5	Isr: 4,6,5	Elr: 	LastKnownElr: 
+	Topic: mesures-brutes	Partition: 4	Leader: 6	Replicas: 6,5,4	Isr: 6,5,4	Elr: 	LastKnownElr: 
+	Topic: mesures-brutes	Partition: 5	Leader: 5	Replicas: 5,4,6	Isr: 5,4,6	Elr: 	LastKnownElr: 
+
+## 2. Arrêt contrôlé d'UN broker (19:32:08 UTC)
+$ docker stop froid-kafka-3   [hôte]
+froid-kafka-3
+(arrêt en 7 s)
+
+[2026-10-25 19:32:09,487] INFO [BrokerLifecycleManager id=6] Beginning controlled shutdown. (org.apache.kafka.server.BrokerLifecycleManager)
+[2026-10-25 19:32:11,838] INFO [BrokerLifecycleManager id=6] The controller has asked us to exit controlled shutdown. (org.apache.kafka.server.BrokerLifecycleManager)
+
+$ bin/kafka-topics.sh --bootstrap-server kafka-1:19092 --describe --topic mesures-brutes
+Topic: mesures-brutes	TopicId: cTtYAV4hSCCG7s8LiEraWQ	PartitionCount: 6	ReplicationFactor: 3	Configs: min.insync.replicas=2,cleanup.policy=delete,retention.ms=604800000,unclean.leader.election.enable=false
+	Topic: mesures-brutes	Partition: 0	Leader: 4	Replicas: 6,4,5	Isr: 4,5	Elr: 	LastKnownElr: 
+	Topic: mesures-brutes	Partition: 1	Leader: 4	Replicas: 4,5,6	Isr: 4,5	Elr: 	LastKnownElr: 
+	Topic: mesures-brutes	Partition: 2	Leader: 5	Replicas: 5,6,4	Isr: 5,4	Elr: 	LastKnownElr: 
+	Topic: mesures-brutes	Partition: 3	Leader: 4	Replicas: 4,6,5	Isr: 4,5	Elr: 	LastKnownElr: 
+	Topic: mesures-brutes	Partition: 4	Leader: 5	Replicas: 6,5,4	Isr: 5,4	Elr: 	LastKnownElr: 
+	Topic: mesures-brutes	Partition: 5	Leader: 5	Replicas: 5,4,6	Isr: 5,4	Elr: 	LastKnownElr: 
+
+partitions sous-répliquées : 65
+
+## 3. Les écritures acks=all passent toujours (19:32:36 UTC)
+$ bin/kafka-console-producer.sh --bootstrap-server kafka-1:19092 --topic mesures-brutes --reader-property parse.key=true --reader-property key.separator=: --command-property acks=all --command-property enable.idempotence=true
+(code retour : 0)
+$ bin/kafka-get-offsets.sh --bootstrap-server kafka-1:19092 --topic mesures-brutes
+mesures-brutes:0:0
+mesures-brutes:1:3
+mesures-brutes:2:1
+mesures-brutes:3:2
+mesures-brutes:4:0
+mesures-brutes:5:0
+
+## 4. Opération de maintenance (ici : aucune), puis relance (19:32:56 UTC)
+$ docker start froid-kafka-3   [hôte]
+froid-kafka-3
+  T+19s : 65 partition(s) sous-répliquée(s)
+  T+51s : 65 partition(s) sous-répliquée(s)
+  T+75s : 0 partition(s) sous-répliquée(s)
+
+$ bin/kafka-topics.sh --bootstrap-server kafka-1:19092 --describe --topic mesures-brutes
+Topic: mesures-brutes	TopicId: cTtYAV4hSCCG7s8LiEraWQ	PartitionCount: 6	ReplicationFactor: 3	Configs: min.insync.replicas=2,cleanup.policy=delete,retention.ms=604800000,unclean.leader.election.enable=false
+	Topic: mesures-brutes	Partition: 0	Leader: 4	Replicas: 6,4,5	Isr: 4,5,6	Elr: 	LastKnownElr: 
+	Topic: mesures-brutes	Partition: 1	Leader: 4	Replicas: 4,5,6	Isr: 4,5,6	Elr: 	LastKnownElr: 
+	Topic: mesures-brutes	Partition: 2	Leader: 5	Replicas: 5,6,4	Isr: 4,5,6	Elr: 	LastKnownElr: 
+	Topic: mesures-brutes	Partition: 3	Leader: 4	Replicas: 4,6,5	Isr: 4,5,6	Elr: 	LastKnownElr: 
+	Topic: mesures-brutes	Partition: 4	Leader: 5	Replicas: 6,5,4	Isr: 4,5,6	Elr: 	LastKnownElr: 
+	Topic: mesures-brutes	Partition: 5	Leader: 5	Replicas: 5,4,6	Isr: 4,5,6	Elr: 	LastKnownElr: 
+
+## 5. Rétablir les leaders préférés sans attendre le contrôle automatique (300 s) (19:34:28 UTC)
+$ bin/kafka-leader-election.sh --bootstrap-server kafka-1:19092 --election-type PREFERRED --all-topic-partitions
+Successfully completed leader election (PREFERRED) for partitions __consumer_offsets-47, __consumer_offsets-16, __consumer_offsets-14, __consumer_offsets-9, __consumer_offsets-42, __consumer_offsets-23, __consumer_offsets-24, mesures-agregees-2, __consumer_offsets-20, __consumer_offsets-31, alertes-temperature-1, __consumer_offsets-27, etat-capteurs-1, __consumer_offsets-39, __consumer_offsets-7, mesures-brutes-0, __consumer_offsets-38, __consumer_offsets-3, __consumer_offsets-33, __consumer_offsets-1, mesures-brutes-4
+
+$ bin/kafka-topics.sh --bootstrap-server kafka-1:19092 --describe --topic mesures-brutes
+Topic: mesures-brutes	TopicId: cTtYAV4hSCCG7s8LiEraWQ	PartitionCount: 6	ReplicationFactor: 3	Configs: min.insync.replicas=2,cleanup.policy=delete,retention.ms=604800000,unclean.leader.election.enable=false
+	Topic: mesures-brutes	Partition: 0	Leader: 6	Replicas: 6,4,5	Isr: 4,5,6	Elr: 	LastKnownElr: 
+	Topic: mesures-brutes	Partition: 1	Leader: 4	Replicas: 4,5,6	Isr: 4,5,6	Elr: 	LastKnownElr: 
+	Topic: mesures-brutes	Partition: 2	Leader: 5	Replicas: 5,6,4	Isr: 4,5,6	Elr: 	LastKnownElr: 
+	Topic: mesures-brutes	Partition: 3	Leader: 4	Replicas: 4,6,5	Isr: 4,5,6	Elr: 	LastKnownElr: 
+	Topic: mesures-brutes	Partition: 4	Leader: 6	Replicas: 6,5,4	Isr: 4,5,6	Elr: 	LastKnownElr: 
+	Topic: mesures-brutes	Partition: 5	Leader: 5	Replicas: 5,4,6	Isr: 4,5,6	Elr: 	LastKnownElr: 
+
+## 6. Contrôle final (19:34:54 UTC)
+$ bash scripts/tableau-de-bord.sh   [hôte]
+(valeurs relevées à 19:34:55 : identiques au pré-contrôle ; brokers 3/3, 0 partition sous-répliquée, 0 sous le min ISR, 0 hors ligne, leaders préférés partout, 3 répertoires en ligne ; journaux : 0 ERROR, sauf les 4 NotControllerException de 19:28:42 sur froid-controller-3, encore dans la fenêtre de 15 min)
+

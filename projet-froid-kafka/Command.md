@@ -234,7 +234,7 @@ docker exec froid-kafka-1 bash -c "/opt/kafka/bin/kafka-configs.sh --bootstrap-s
 
 ## Phase J - Exploitation, sécurité
 
-Pas de commande : rédaction de `Documentation/06-exploitation-securite.md`.
+Le 22/10 : pas de commande, rédaction de `Documentation/06-exploitation-securite.md`. Le 25/10 : `Documentation/10-criteres-7-8-guide-H-I-J.md`, `scripts/tableau-de-bord.sh`, et les procédures jouées sur un second poste (section suivante).
 
 ## Phase K - Simuler les sorties (preuves/K-simulation-sorties.txt)
 
@@ -287,6 +287,48 @@ docker logs froid-kafka-1 --until <heure de relance> 2>&1 | tail -4             
 
 ---
 
+## Validation du 25/10/2026 sur un second poste (critères 7 et 8 : preuves/H1-segments-25-10.txt, H2-complement-*, H3-*, I6-*, I7-*, J-*)
+
+Cluster reconstruit à partir du dépôt sur un poste où il n'existait pas (Docker 29.8.2, 12 CPU, 11,5 Gio pour Docker, mêmes identifiants `.env`). Topics de démonstration `demo-*` uniquement, tous supprimés à la fin ; `etat-capteurs` et `tp-migration` laissés intacts pour refaire H2 et I. Heures en UTC.
+
+### Reconstruction (phases C à E, prérequis de H et I) et relance après crash (preuves/J-relance-apres-crash.txt)
+```
+docker compose -f docker-compose-froid.yml config --quiet && docker compose -f docker-compose-froid.yml up -d --wait   # [hôte] 18:46 : formatage des 6 volumes ; crash du moteur WSL de Docker Desktop à 18:47:55 -> 6 conteneurs Exited (255)
+docker compose -f docker-compose-froid.yml start                                       # [hôte] relance sans reformatage, 6 services healthy en 86 s, « already formatted » sur les contrôleurs
+docker compose -f docker-compose-froid.yml up -d --wait --force-recreate kafka-1 kafka-2 kafka-3   # [hôte] docker logs figé pour les brokers : conteneurs recréés, volumes conservés, « already formatted » x3
+docker exec froid-kafka-1 /opt/kafka/bin/kafka-topics.sh ... --create ...                # [Kafka] les 4 topics de la phase D (preuves/D-topics.txt)
+printf '...5 lignes du sujet...\n' | docker exec -i froid-kafka-1 /opt/kafka/bin/kafka-console-producer.sh ... --topic mesures-brutes ... acks=all, idempotence   # [hôte -> Kafka] phase E
+```
+
+### H1, réglages par défaut, H3 rétention (preuves/H1-segments-25-10.txt, H3-retention.txt)
+```
+docker exec froid-kafka-1 bash -c 'cd /opt/kafka && bin/kafka-configs.sh ... --describe --all --entity-type brokers --entity-name 4 | grep ...'   # [Kafka] H1 + défauts : retention.check 300000, segment.delete.delay 60000, cleaner.backoff 15000...
+docker exec froid-kafka-1 /opt/kafka/bin/kafka-topics.sh ... --create --topic test-segment-bytes ... --config segment.bytes=1024   # [Kafka] refusé : « Value must be at least 1048576 » (rien de créé)
+docker exec froid-kafka-1 grep "Starting log cleanup" /opt/kafka/logs/server.log        # [Kafka] 18:54:44 : contrôles de rétention à 18:55:14 + k x 300 s
+(script de validation hors dépôt : commandes de la doc 10, H3, calées sur le contrôle de 19:05:14)   # [hôte] demo-retention (RF 3, leader 4, retention.ms=60000, segment.ms=20000) : 5 valeurs à 19:03:43, 9.2 à 19:04:54, segment 0 supprimé à 19:05:14, début 0 -> 5, topic supprimé
+```
+
+### Compléments H2 et I, cas RF 1 (preuves/H2-complement-segment-actif.txt, I6-throttle-et-retour-arriere.txt, I7-rf1-min-isr-effectif.txt)
+```
+...kafka-topics.sh --create --topic demo-compaction ... ; kafka-configs.sh --alter ... --add-config segment.ms=20000,min.cleanable.dirty.ratio=0.01   # [Kafka] rejeu de H2 : mêmes sorties que le sujet
+printf 'CAP-001:9.5\n' | ...kafka-console-producer.sh ... --topic demo-compaction       # [hôte -> Kafka] 9.0 disparaît, 9.2 (offset 3) et 9.5 (offset 4) restent ; topic supprimé
+...kafka-reassign-partitions.sh ... --reassignment-json-file /tmp/plan-demo.json --execute --throttle 1048576   # [Kafka] demo-migration (20 000 mesures) : quotas posés puis retirés par --verify
+...kafka-reassign-partitions.sh ... --reassignment-json-file /tmp/retour-demo.json --execute ; --verify      # [Kafka] retour arrière : RF 1, offsets 6600/6120/7280 identiques ; topic supprimé
+docker exec froid-controller-1 ... kafka-dump-log.sh --cluster-metadata-decoder ... | grep <TopicId>   # [Kafka] leaders rendus à 19:28:31 par le rééquilibrage automatique
+...kafka-topics.sh --create --topic demo-rf1 --replication-factor 1 ; producteur acks=all ; --delete   # [Kafka] RF 1 sous min.insync.replicas=2 : voir I7
+```
+
+### J - Tableau de bord, maintenance progressive, panne disque, arrêt-relance (preuves/J-*.txt)
+```
+bash scripts/tableau-de-bord.sh                                                        # [hôte] 1re version boguée (second verdict erroné), corrigée puis complétée ; relevés propres : J-tableau-de-bord.txt
+docker stop froid-kafka-3 ; ... ; docker start froid-kafka-3                           # [hôte] maintenance : arrêt en 7 s, 65 URP, écriture acks=all acceptée, 0 URP à T+75 s
+docker exec froid-kafka-1 /opt/kafka/bin/kafka-leader-election.sh ... --election-type PREFERRED --all-topic-partitions   # [Kafka] 21 partitions rendues à leur leader préféré
+docker stop froid-kafka-3 ; docker rm froid-kafka-3 ; docker volume rm projet-froid_kafka-3   # [hôte] panne disque SIMULÉE du broker 6
+docker compose -f docker-compose-froid.yml up -d --wait kafka-3                         # [hôte] volume neuf formaté (même cluster.id, nouvel UUID de répertoire), 0 URP en 83 s, données recopiées
+docker compose -f docker-compose-froid.yml stop ; docker compose -f docker-compose-froid.yml start   # [hôte] arrêt-relance : brokers tués à 10 s (code 137), « no clean shutdown file » ; offsets identiques
+docker compose -f docker-compose-froid.yml stop -t 120 ; docker compose -f docker-compose-froid.yml start   # [hôte] arrêt propre en 27 s (codes 143), « Skipping recovery of 65 logs … clean shutdown file was found » (preuves/J-arret-propre-stop-t120.txt)
+```
+
 ## Problèmes rencontrés et corrections
 
 | # | Phase | Problème observé | Diagnostic / correction |
@@ -302,3 +344,8 @@ docker logs froid-kafka-1 --until <heure de relance> 2>&1 | tail -4             
 | 9 | K | Les agrégats simulés (CAP-001 : 4 mesures, max 9,0) ne correspondent pas aux mesures réellement envoyées (5 mesures entre 09:00 et 09:05, max 9,4). | Valeurs volontairement illustratives, marquées `"source":"SIMULATION"`. Un vrai job Flink les calculerait. Signalé dans la documentation. |
 | 10 | L2 | Codes de sortie 137 (et 143) au `stop`. | Le journal montre « shut down completed » avant la sortie de la JVM, et au redémarrage « 0 recovered » : l'arrêt était propre. |
 | 11 | G2 | Un fichier temporaire `/tmp/urp.txt` a été écrit dans le `/tmp` de Git Bash (hors du projet). | Supprimé immédiatement après usage (`rm -f /tmp/urp.txt`). Les comptages suivants passent par des variables shell. |
+| 12 | 25/10, C | Sur le second poste, crash du moteur WSL de Docker Desktop pendant le premier `up` (hôte à 0,4 Go de RAM libre) : 6 conteneurs `Exited (255)`. | `docker compose ... start` : relance sans reformatage. Puis `--force-recreate` des 3 brokers, dont `docker logs` restait figé (volumes conservés). Mémoire libérée en fermant des applications. |
+| 13 | 25/10, J | La 1re version de `scripts/tableau-de-bord.sh` affichait un second verdict erroné après chaque indicateur sain (la fonction `verdict` renvoyait un code non nul, ce qui déclenchait la branche `\|\|`). | Fonction corrigée (`return 0`, tests en `if`/`else`), alignement des libellés accentués, puis ajout des contrôleurs en service et des réglages de démonstration. Les preuves J donnent les valeurs relevées par la 1re version, sans ses verdicts. |
+| 14 | 25/10, J/L | `docker compose stop` : brokers tués au bout de 10 s (code 137) ; au redémarrage, « Recovering 65 logs … since no clean shutdown file was found ». | Pas de perte (offsets identiques). Les brokers mettent 12 à 14 s à s'arrêter sur ce poste. `stop -t 120` vérifié : arrêt propre et aucune vérification au redémarrage (`stop_grace_period` dans le Compose : proposé, non appliqué). |
+| 15 | 25/10 | Bascules répétées du leader du quorum (19:28, 19:39-19:40, 20:07-20:08) : `NotControllerException` transitoires dans les journaux des contrôleurs. | Cause : hôte saturé en mémoire. Aucune partition touchée ; erreurs classées dans `preuves/J-*.txt`. |
+| 16 | 25/10, I | `leader.imbalance.per.broker.percentage`, cité par la doc 05, n'existe plus en 4.3.1. | Doc 05 et doc 10 corrigées. |

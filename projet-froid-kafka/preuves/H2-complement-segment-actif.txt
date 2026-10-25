@@ -1,0 +1,109 @@
+# Poste de validation : cluster reconstruit à partir du dépôt (mêmes identifiants .env), Docker 29.8.2. Heures en UTC.
+# Les commandes « docker exec froid-kafka-1 ls … » équivalent à « ls … » dans le terminal Kafka.
+# H2 (complément) - compaction rejouée sur un topic de démonstration, puis preuve du segment actif (25/10/2026)
+## 1. Topic compacté de démonstration et réglages de démonstration (19:20:42 UTC)
+$ bin/kafka-topics.sh --bootstrap-server kafka-1:19092 --create --topic demo-compaction --partitions 3 --replication-factor 3 --config min.insync.replicas=2 --config cleanup.policy=compact
+Created topic demo-compaction.
+
+$ bin/kafka-configs.sh --bootstrap-server kafka-1:19092 --alter --entity-type topics --entity-name demo-compaction --add-config segment.ms=20000,min.cleanable.dirty.ratio=0.01
+Completed updating config for topic demo-compaction.
+
+## 2. Cinq valeurs (19:21:00 UTC), lecture AVANT
+$ bin/kafka-console-producer.sh --bootstrap-server kafka-1:19092 --topic demo-compaction --reader-property parse.key=true --reader-property key.separator=:
+CAP-001:4.2
+CAP-002:5.1
+CAP-001:8.7
+CAP-003:3.8
+CAP-001:9.0
+
+$ bin/kafka-console-consumer.sh --bootstrap-server kafka-1:19092 --topic demo-compaction --from-beginning --formatter-property print.key=true --formatter-property print.partition=true --formatter-property print.offset=true --timeout-ms 10000
+Partition:0	Offset:0	CAP-002	5.1
+Partition:2	Offset:0	CAP-003	3.8
+Partition:1	Offset:0	CAP-001	4.2
+Partition:1	Offset:1	CAP-001	8.7
+Partition:1	Offset:2	CAP-001	9.0
+[2026-10-25 19:21:28,598] ERROR Error processing message, terminating consumer process:  (org.apache.kafka.tools.consumer.ConsoleConsumer)
+org.apache.kafka.common.errors.TimeoutException
+Processed a total of 5 messages
+
+## 3. Plus de 20 s après (19:21:55 UTC) : CAP-001:9.2 ferme le segment 0 de la partition 1
+$ bin/kafka-console-producer.sh --bootstrap-server kafka-1:19092 --topic demo-compaction --reader-property parse.key=true --reader-property key.separator=:
+CAP-001:9.2
+
+## 4. Une minute après (19:23:04 UTC) : lecture APRÈS
+$ bin/kafka-console-consumer.sh --bootstrap-server kafka-1:19092 --topic demo-compaction --from-beginning --formatter-property print.key=true --formatter-property print.partition=true --formatter-property print.offset=true --timeout-ms 10000
+Partition:0	Offset:0	CAP-002	5.1
+Partition:2	Offset:0	CAP-003	3.8
+Partition:1	Offset:2	CAP-001	9.0
+Partition:1	Offset:3	CAP-001	9.2
+[2026-10-25 19:23:22,873] ERROR Error processing message, terminating consumer process:  (org.apache.kafka.tools.consumer.ConsoleConsumer)
+org.apache.kafka.common.errors.TimeoutException
+Processed a total of 4 messages
+
+$ ls -l /var/lib/kafka/data/demo-compaction-1
+total 24
+-rw-r--r-- 1 appuser appuser        0 Oct 25 19:21 00000000000000000000.index
+-rw-r--r-- 1 appuser appuser       78 Oct 25 19:21 00000000000000000000.log
+-rw-r--r-- 1 appuser appuser       12 Oct 25 19:21 00000000000000000000.timeindex
+-rw-r--r-- 1 appuser appuser 10485760 Oct 25 19:22 00000000000000000003.index
+-rw-r--r-- 1 appuser appuser       78 Oct 25 19:22 00000000000000000003.log
+-rw-r--r-- 1 appuser appuser       56 Oct 25 19:22 00000000000000000003.snapshot
+-rw-r--r-- 1 appuser appuser 10485756 Oct 25 19:22 00000000000000000003.timeindex
+-rw-r--r-- 1 appuser appuser        8 Oct 25 19:21 leader-epoch-checkpoint
+-rw-r--r-- 1 appuser appuser       43 Oct 25 19:20 partition.metadata
+
+$ bin/kafka-dump-log.sh --files /var/lib/kafka/data/demo-compaction-1/00000000000000000000.log --print-data-log
+Dumping /var/lib/kafka/data/demo-compaction-1/00000000000000000000.log
+Log starting offset: 0
+baseOffset: 0 lastOffset: 2 count: 1 baseSequence: 0 lastSequence: 2 producerId: 4 producerEpoch: 0 partitionLeaderEpoch: 0 isTransactional: false isControl: false deleteHorizonMs: OptionalLong.empty position: 0 CreateTime: 1792956067447 size: 78 magic: 2 compresscodec: none crc: 1644417327 isvalid: true
+| offset: 2 CreateTime: 1792956067447 keySize: 7 valueSize: 3 sequence: 2 headerKeys: [] key: CAP-001 payload: 9.0
+Non-consecutive offsets in /var/lib/kafka/data/demo-compaction-1/00000000000000000000.log
+  -1 is followed by 2
+
+## 5. Tombstone pour CAP-002 (19:23:33 UTC)
+$ bin/kafka-console-producer.sh --bootstrap-server kafka-1:19092 --topic demo-compaction --reader-property parse.key=true --reader-property key.separator=: --reader-property null.marker=NULL
+CAP-002:NULL
+
+$ bin/kafka-console-consumer.sh --bootstrap-server kafka-1:19092 --topic demo-compaction --from-beginning --formatter-property print.key=true --formatter-property print.partition=true --formatter-property print.offset=true --timeout-ms 10000
+Partition:0	Offset:0	CAP-002	5.1
+Partition:2	Offset:0	CAP-003	3.8
+Partition:1	Offset:2	CAP-001	9.0
+Partition:0	Offset:1	CAP-002	null
+Partition:1	Offset:3	CAP-001	9.2
+[2026-10-25 19:24:05,555] ERROR Error processing message, terminating consumer process:  (org.apache.kafka.tools.consumer.ConsoleConsumer)
+org.apache.kafka.common.errors.TimeoutException
+Processed a total of 5 messages
+
+## 6. Complément (19:24:32 UTC) : CAP-001:9.5 ferme le segment qui contient 9.2
+$ bin/kafka-console-producer.sh --bootstrap-server kafka-1:19092 --topic demo-compaction --reader-property parse.key=true --reader-property key.separator=:
+CAP-001:9.5
+
+## 7. Une minute après (19:25:40 UTC) : 9.0 a disparu, 9.2 et 9.5 restent
+$ bin/kafka-console-consumer.sh --bootstrap-server kafka-1:19092 --topic demo-compaction --from-beginning --formatter-property print.key=true --formatter-property print.partition=true --formatter-property print.offset=true --timeout-ms 10000
+Partition:0	Offset:0	CAP-002	5.1
+Partition:2	Offset:0	CAP-003	3.8
+Partition:1	Offset:3	CAP-001	9.2
+Partition:0	Offset:1	CAP-002	null
+Partition:1	Offset:4	CAP-001	9.5
+[2026-10-25 19:25:59,637] ERROR Error processing message, terminating consumer process:  (org.apache.kafka.tools.consumer.ConsoleConsumer)
+org.apache.kafka.common.errors.TimeoutException
+Processed a total of 5 messages
+
+$ ls -l /var/lib/kafka/data/demo-compaction-1
+total 24
+-rw-r--r-- 1 appuser appuser        0 Oct 25 19:22 00000000000000000000.index
+-rw-r--r-- 1 appuser appuser      139 Oct 25 19:22 00000000000000000000.log
+-rw-r--r-- 1 appuser appuser       12 Oct 25 19:22 00000000000000000000.timeindex
+-rw-r--r-- 1 appuser appuser 10485760 Oct 25 19:24 00000000000000000004.index
+-rw-r--r-- 1 appuser appuser       78 Oct 25 19:24 00000000000000000004.log
+-rw-r--r-- 1 appuser appuser      102 Oct 25 19:24 00000000000000000004.snapshot
+-rw-r--r-- 1 appuser appuser 10485756 Oct 25 19:24 00000000000000000004.timeindex
+-rw-r--r-- 1 appuser appuser        8 Oct 25 19:21 leader-epoch-checkpoint
+-rw-r--r-- 1 appuser appuser       43 Oct 25 19:20 partition.metadata
+
+## 8. Retrait des réglages et du topic de démonstration (19:26:02 UTC)
+$ bin/kafka-configs.sh --bootstrap-server kafka-1:19092 --alter --entity-type topics --entity-name demo-compaction --delete-config segment.ms,min.cleanable.dirty.ratio
+Completed updating config for topic demo-compaction.
+
+$ bin/kafka-topics.sh --bootstrap-server kafka-1:19092 --delete --topic demo-compaction
+
